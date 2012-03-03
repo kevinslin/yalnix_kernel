@@ -40,7 +40,7 @@ ALL = yalnix test1 test2 test3
 #
 #
 KERNEL_OBJS = yalnix.o
-KERNEL_SRCS = test1.c
+KERNEL_SRCS = yalnix.c
 
 #
 #	You should not have to modify anything else in this Makefile
