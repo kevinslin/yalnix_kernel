@@ -5,3 +5,8 @@ lib/*
 templates/*
 include/*
 *.swp
+
+src/DISK
+src/TRACE
+src/TTY*
+
