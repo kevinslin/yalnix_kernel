@@ -4,7 +4,6 @@
 #include <comp421/yalnix.h>
 #include <comp421/hardware.h>
 
-
 static int **interrupt_vector_table[TRAP_VECTOR_SIZE];
 typedef struct {
   int dummy;
@@ -29,6 +28,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   page_table p_reg1;
   WriteRegister( REG_PTR0, (RCS421RegVal) &p_reg0);
   WriteRegister( REG_PTR1, (RCS421RegVal) &p_reg1);
+  /* Map existing physical addresses to same virtual addresses */
   /* Enable virtual memory */
   WriteRegister( REG_VM_ENABLE, (RCS421RegVal) 1);
   /* Create an idle process */
