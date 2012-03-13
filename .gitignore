@@ -10,3 +10,5 @@ src/DISK
 src/TRACE
 src/TTY*
 
+cscope.*
+

@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-
 #include <comp421/yalnix.h>
 #include <comp421/hardware.h>
 
+#include "load.c"
+
 #define PTE_VALID 1
-#define PTE_INVALID -1
+#define PTE_INVALID 0
 #define PFN_INVALID  -1
 
 #define FRAME_NOT_FREE -1
@@ -70,11 +71,12 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   /* Initial page tables for region 0 and region 1 */
   for (i=0; i< num_pages; i++) {
+    // Region 0
     page_table0[i].pfn = PFN_INVALID;
     page_table0[i].valid = PTE_INVALID;
     page_table0[i].uprot = PROT_NONE;
     page_table0[i].kprot = PROT_NONE;
-
+    // Region 1
     page_table1[i].pfn = PFN_INVALID;
     page_table1[i].valid = PTE_INVALID;
     page_table1[i].uprot = PROT_NONE;
@@ -85,8 +87,8 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   // Initialize the kernel pages
   kernel_heap_limit_index = get_page_index(orig_brk);
   kernel_text_limit_index = get_page_index(&_etext);
-  kernel_stack_base_index = get_page_index(KERNEL_STACK_BASE);
   kernel_stack_limit_index = get_page_index(KERNEL_STACK_LIMIT);
+  kernel_stack_base_index = get_page_index(KERNEL_STACK_BASE);
   /*
    * ...
    * ...
@@ -95,13 +97,20 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
    * KERNEL_TEXT_LIMIT (589)
    * ...
    * VMEM_1_BASE
+   * ==================
+   * Region 0
+   * ====================
    * ...
    * KERNEL_STACK_LIMIT (512)
    * ...
    * KERNEL_STACK_BASE (508)
+   * User Stack
+   * ...
+   * MEM_INVALID
    */
 
   // Page Table 1
+  // TABLE1_OFFSET neccessary to account for VMEM_1_BASE higher starting address
   for(i=get_page_index(VMEM_1_BASE); i < kernel_text_limit_index; i++) {
     page_table1[i - TABLE1_OFFSET].valid = PTE_VALID;
     page_table1[i - TABLE1_OFFSET].pfn = i;

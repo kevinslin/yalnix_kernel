@@ -37,6 +37,7 @@ LoadProgram(char *name, char **args)
 {
     int fd;
     int status;
+    /* Struct containing heap space sizes */
     struct loadinfo li;
     char *cp;
     char *cp2;

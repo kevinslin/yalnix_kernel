@@ -10,6 +10,10 @@ Bucket
 
 0.2
   Working kernel start function
+	- create an idle process
+	- create init program
+		->
+
 
 0.1
   Compilation
