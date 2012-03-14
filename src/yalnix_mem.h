@@ -12,7 +12,7 @@ typedef struct {
 } page_frames;
 
 
-static int **interrupt_vector_table[TRAP_VECTOR_SIZE];
+static void *interrupt_vector_table[TRAP_VECTOR_SIZE];
 static page_frames *frames_p;
 
 int NUM_FRAMES;
