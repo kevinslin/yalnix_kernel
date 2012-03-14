@@ -1,5 +1,5 @@
-#define FRAME_NOT_FREE -1
-#define FRAME_FREE 1
+#ifndef _yalnix_mem_h
+#define _yalnix_mem_h
 
 #define PTE_VALID 1
 #define PTE_INVALID 0
@@ -21,3 +21,5 @@ int initialize_frames(int num_frames);
 int set_frame(int index, int status);
 int len_free_frames();
 void debug_frames();
+
+#endif	/* yalnix_mem.h */

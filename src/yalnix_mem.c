@@ -2,6 +2,8 @@
 #include "yalnix_mem.h"
 
 
+#define FRAME_NOT_FREE -1
+#define FRAME_FREE 1
 /*
  * Initialize all frames to free.
  */

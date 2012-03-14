@@ -4,13 +4,19 @@
 #include <comp421/yalnix.h>
 #include <comp421/hardware.h>
 
-//#include "load.c"
 #include "utils.h"
+#include "yalnix_kernel.c"
 #include "yalnix_mem.c"
-
+//#include "load.c"
 
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
+
+// Page table constants
 #define NUM_PAGES 512
+#define PTE_VALID 1
+#define PTE_INVALID 0
+#define PFN_INVALID  -1
+#define TABLE1_OFFSET 512
 
 
 
@@ -25,6 +31,7 @@ void process_idle() {
 }
 
 /* Diagnostics */
+// Debug page tables
 void
 debug_page_tables(struct pte *table, int verbosity) {
   int i;
@@ -35,6 +42,7 @@ debug_page_tables(struct pte *table, int verbosity) {
   } // end verbosity
 }
 
+// Debug stack frame
 void
 debug_stack_frame(ExceptionStackFrame *frame) {
   printf("vector: %i\n", frame->vector); // type of interrupt
@@ -46,6 +54,7 @@ debug_stack_frame(ExceptionStackFrame *frame) {
   printf(DIVIDER);
 }
 
+// Interrupt kernel
 void
 interrupt_kernel(ExceptionStackFrame *frame) {
   printf("got a kernel interrupt\n");
@@ -163,9 +172,5 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   // Test
   printf("hello world!");
-}
-
-int SetKernelBrk(void *size) {
-  return 0;
 }
 
