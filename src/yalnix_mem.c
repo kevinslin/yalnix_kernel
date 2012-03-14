@@ -61,7 +61,8 @@ debug_frames(int verbosity) {
 				printf("invalid frame entry: %i\n",(frames_p + i)->free);
 			}
 		}
-	}
+	}// end verbosity
+	printf("=============\n");
 }
 
 

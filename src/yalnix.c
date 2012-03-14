@@ -9,6 +9,8 @@
 
 
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
+#define NUM_PAGES 512
+
 
 
 /*
@@ -22,15 +24,19 @@ void process_idle() {
 }
 
 void
-debug_page_table(page_table table) {
+debug_page_tables(struct pte *table, int verbosity) {
   int i;
+  if (verbosity) {
+    for (i=0; i<NUM_PAGES; i++) {
+      printf("i:%i, pfn: %u, valid: %u\n", i, (table + i)->pfn, (table + i)->valid);
+    }
+  } // end verbosity
 }
 
 void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
   /* Init */
   int i;
   int num_frames;
-  int num_pages;
   int kernel_heap_limit_index;
   int kernel_text_limit_index;
   int kernel_stack_base_index;
@@ -39,17 +45,14 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   /* Initialize constants */
   num_frames = pmem_size / PAGESIZE;
   assert(num_frames > 0); // silly...
-  num_pages = VMEM_REGION_SIZE / PAGESIZE;
-  assert(num_pages > 0); // silly...
 
   /* Frames and Tables*/
   initialize_frames(num_frames);
-  struct pte page_table0[num_pages];
-  struct pte page_table1[num_pages];
+  struct pte *page_table0_p = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
+  struct pte *page_table1_p = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
+
 
   debug_frames(0);
-  printf("base page table0: %p\n", page_table0);
-  printf("base page table1: %p\n", page_table1);
 
   /* TODO: Initialize interrupt vector table */
   for (i=0; i < TRAP_VECTOR_SIZE; i++) {
@@ -59,20 +62,19 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   /* Point REG_VECTOR_BASE at interupt vector table */
   WriteRegister( REG_VECTOR_BASE, (RCS421RegVal) &interrupt_vector_table);
 
-  /* Keep track of free page frames */
 
-  /* Initial page tables for region 0 and region 1 */
-  for (i=0; i< num_pages; i++) {
+  /* Initialize all page table entries to invalid */
+  for (i=0; i< NUM_PAGES; i++) {
     // Region 0
-    page_table0[i].pfn = PFN_INVALID;
-    page_table0[i].valid = PTE_INVALID;
-    page_table0[i].uprot = PROT_NONE;
-    page_table0[i].kprot = PROT_NONE;
+    (page_table0_p + i)->pfn = PFN_INVALID;
+    (page_table0_p + i)->valid = PTE_INVALID;
+    (page_table0_p + i)->uprot = PROT_NONE;
+    (page_table0_p + i)->kprot = PROT_NONE;
     // Region 1
-    page_table1[i].pfn = PFN_INVALID;
-    page_table1[i].valid = PTE_INVALID;
-    page_table1[i].uprot = PROT_NONE;
-    page_table1[i].kprot = PROT_NONE;
+    (page_table1_p + i)->pfn = PFN_INVALID;
+    (page_table1_p + i)->valid = PTE_INVALID;
+    (page_table1_p + i)->uprot = PROT_NONE;
+    (page_table1_p + i)->kprot = PROT_NONE;
   }
 
 
@@ -105,33 +107,35 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   // Page Table 1
   // TABLE1_OFFSET neccessary to account for VMEM_1_BASE higher starting address
-  for(i=get_page_index(VMEM_1_BASE); i <= kernel_text_limit_index; i++) {
-    page_table1[i - TABLE1_OFFSET].valid = PTE_VALID;
-    page_table1[i - TABLE1_OFFSET].pfn = i;
-    page_table1[i - TABLE1_OFFSET].kprot = (PROT_READ | PROT_EXEC);
+  for(i=get_page_index(VMEM_1_BASE); i <= kernel_text_limit_index + 1; i++) {
+    (page_table1_p + i - TABLE1_OFFSET)->valid = PTE_VALID;
+    (page_table1_p + i - TABLE1_OFFSET)->pfn = i;
+    (page_table1_p + i - TABLE1_OFFSET)->kprot = (PROT_READ | PROT_EXEC);
     set_frame(i, FRAME_NOT_FREE);
   }
   for(i=kernel_text_limit_index; i <= kernel_heap_limit_index; i++) {
-    page_table1[i - TABLE1_OFFSET].valid = PTE_VALID;
-    page_table1[i - TABLE1_OFFSET].pfn = i;
-    page_table1[i - TABLE1_OFFSET].kprot = (PROT_READ | PROT_WRITE);
+    (page_table1_p + i - TABLE1_OFFSET)->valid = PTE_VALID;
+    (page_table1_p + i - TABLE1_OFFSET)->pfn = i;
+    (page_table1_p + i - TABLE1_OFFSET)->kprot = (PROT_READ | PROT_WRITE);
     set_frame(i, FRAME_NOT_FREE);
   }
   // Page Table 0
   for(i=kernel_stack_base_index; i <= kernel_stack_limit_index; i++) {
-    page_table0[i].valid = PTE_VALID;
-    page_table0[i].pfn = i;
-    page_table0[i].kprot = (PROT_READ | PROT_WRITE);
-    page_table0[i].uprot = PROT_NONE;
+    (page_table0_p + i)->valid = PTE_VALID;
+    (page_table0_p + i)->pfn = i;
+    (page_table0_p + i)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table0_p + i)->uprot = PROT_NONE;
     set_frame(i, FRAME_NOT_FREE);
   }
 
   printf("pmem: %u\n", pmem_size);
   printf("free frames: %i\n", len_free_frames());
   debug_frames(0);
+  debug_page_tables(page_table0_p, 1);
+  debug_page_tables(page_table1_p, 1);
 
-  WriteRegister( REG_PTR0, (RCS421RegVal) &page_table0);
-  WriteRegister( REG_PTR1, (RCS421RegVal) &page_table1);
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
+  WriteRegister( REG_PTR1, (RCS421RegVal) page_table1_p);
 
   /* Enable virtual memory */
   WriteRegister( REG_VM_ENABLE, (RCS421RegVal) 1);
