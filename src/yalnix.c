@@ -21,6 +21,11 @@ void process_idle() {
   }
 }
 
+void
+debug_page_table(page_table table) {
+  int i;
+}
+
 void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
   /* Init */
   int i;
@@ -42,7 +47,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   struct pte page_table0[num_pages];
   struct pte page_table1[num_pages];
 
-  debug_frames();
+  debug_frames(0);
   printf("base page table0: %p\n", page_table0);
   printf("base page table1: %p\n", page_table1);
 
@@ -89,27 +94,28 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
    * Region 0
    * ====================
    * ...
-   * KERNEL_STACK_LIMIT (512)
+   * KERNEL_STACK_LIMIT/VMEM_0_LIMIT (512)
    * ...
    * KERNEL_STACK_BASE (508)
    * User Stack
    * ...
    * MEM_INVALID
+   * VMEM_0_BASE (0)
    */
 
   // Page Table 1
   // TABLE1_OFFSET neccessary to account for VMEM_1_BASE higher starting address
-  for(i=get_page_index(VMEM_1_BASE); i < kernel_text_limit_index; i++) {
+  for(i=get_page_index(VMEM_1_BASE); i <= kernel_text_limit_index; i++) {
     page_table1[i - TABLE1_OFFSET].valid = PTE_VALID;
     page_table1[i - TABLE1_OFFSET].pfn = i;
     page_table1[i - TABLE1_OFFSET].kprot = (PROT_READ | PROT_EXEC);
-    //set_frame(i, FRAME_NOT_FREE);
+    set_frame(i, FRAME_NOT_FREE);
   }
   for(i=kernel_text_limit_index; i <= kernel_heap_limit_index; i++) {
     page_table1[i - TABLE1_OFFSET].valid = PTE_VALID;
     page_table1[i - TABLE1_OFFSET].pfn = i;
     page_table1[i - TABLE1_OFFSET].kprot = (PROT_READ | PROT_WRITE);
-    //set_frame(i, FRAME_NOT_FREE);
+    set_frame(i, FRAME_NOT_FREE);
   }
   // Page Table 0
   for(i=kernel_stack_base_index; i <= kernel_stack_limit_index; i++) {
@@ -117,12 +123,12 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
     page_table0[i].pfn = i;
     page_table0[i].kprot = (PROT_READ | PROT_WRITE);
     page_table0[i].uprot = PROT_NONE;
-    //set_frame(i, FRAME_NOT_FREE);
+    set_frame(i, FRAME_NOT_FREE);
   }
 
   printf("pmem: %u\n", pmem_size);
   printf("free frames: %i\n", len_free_frames());
-  debug_frames();
+  debug_frames(0);
 
   WriteRegister( REG_PTR0, (RCS421RegVal) &page_table0);
   WriteRegister( REG_PTR1, (RCS421RegVal) &page_table1);

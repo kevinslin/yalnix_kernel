@@ -23,7 +23,6 @@ Bucket
 	- setkernelbrk (grow kernel heap)
 	- brk (grow user heap)
 
-0.2
   Working kernel start function
 	- create an idle process
 	- create init program
@@ -31,6 +30,9 @@ Bucket
 	- be able to context switch
 		-> process control block
 		-> other data structures
+
+0.2
+	Abstract methods to access frames and no crashes
 
 
 0.1

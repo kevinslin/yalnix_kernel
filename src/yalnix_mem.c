@@ -1,12 +1,21 @@
+#include <stdlib.h>
 #include "yalnix_mem.h"
 
 
+/*
+ * Initialize all frames to free.
+ */
 int
 initialize_frames(int num_frames) {
 	NUM_FRAMES = num_frames;
 	int i;
-	page_frames frames[NUM_FRAMES];
-	frames_p = frames;
+	//page_frames frames[NUM_FRAMES];
+	frames_p = (page_frames *)malloc( sizeof(page_frames) * NUM_FRAMES );
+	// Error mallocing memory
+	if (frames_p == NULL) {
+		return -1;
+	}
+	//*frames_p = page_frames frames[NUM_FRAMES];
   for (i=0; i<NUM_FRAMES; i++) {
 		(*(frames_p + i)).free = FRAME_FREE;
   }
@@ -35,19 +44,22 @@ len_free_frames() {
 
 
 void
-debug_frames() {
+debug_frames(int verbosity) {
 	int i;
-	printf("base address: %p\n", frames_p);
 	printf("lim address: %p\n", frames_p + NUM_FRAMES);
+	printf("base address: %p\n", frames_p);
 	printf("free frames: %i\n", len_free_frames());
-	for(i=0; i<NUM_FRAMES; i++) {
-		printf("address: %p ", frames_p + i);
-		if ((frames_p + i)->free == FRAME_FREE) {
-			printf("mem free\n");
-		} else if ((frames_p + i)->free == FRAME_NOT_FREE) {
-			printf("mem not free\n");
-		} else {
-			printf("invalid frame entry: %i\n",(frames_p + i)->free);
+	printf("num frames: %i\n", NUM_FRAMES);
+	if (verbosity) {
+		for(i=0; i<NUM_FRAMES; i++) {
+			printf("address: %p ", frames_p + i);
+			if ((frames_p + i)->free == FRAME_FREE) {
+				printf("mem free\n");
+			} else if ((frames_p + i)->free == FRAME_NOT_FREE) {
+				printf("mem not free\n");
+			} else {
+				printf("invalid frame entry: %i\n",(frames_p + i)->free);
+			}
 		}
 	}
 }
