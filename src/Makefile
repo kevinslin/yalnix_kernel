@@ -39,8 +39,8 @@ ALL = yalnix test1 test2 test3
 #	the corresponding source files that make up your kernel.
 #
 #
-KERNEL_OBJS = yalnix_mem.o yalnix_interrupts.o yalnix_kernel.o yalnix.o
-KERNEL_SRCS = yalnix_interrupts.c  yalnix_kernel.c  yalnix_mem.c  yalnix.c
+KERNEL_OBJS = yalnix_mem.o yalnix_interrupts.o yalnix.o
+KERNEL_SRCS = yalnix_interrupts.c yalnix_mem.c  yalnix.c
 
 #
 #	You should not have to modify anything else in this Makefile

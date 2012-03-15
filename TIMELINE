@@ -8,35 +8,29 @@ Bucket
 0.*
 ------------------------------
 
-0.5 I/O
+Bucket
 	- finish i/o
 
-0.4 Kernel Calls2
 	- delay call
 	- fork
 	- exec
 	- test exit and wait kernel calls
 
-0.3
 	Kernel calls
 	- getpid call
 	- setkernelbrk (grow kernel heap)
 	- brk (grow user heap)
 
-  Working kernel start function
-	- create an idle process
-	- create init program
-	- implement load program function
-	- be able to context switch
-		-> process control block
-		-> other data structures
+0.4
+	Context Switch
+	- switch between init and idle
 
 0.3
   Be able to load init process
+	- initiate the PCB
 
 0.2
 	Abstract methods to access frames and no crashes
-
 
 0.1
   Compilation

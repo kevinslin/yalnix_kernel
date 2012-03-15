@@ -11,15 +11,25 @@
 //#include "load.c"
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
 
-/* Externals */
-// Localted in yalnix_mem.c
-//extern static page_frames *frames_p;
-extern bool VM_ENABLED;
-
 /* Globals */
 static void *interrupt_vector_table[TRAP_VECTOR_SIZE];
 static struct pte page_table1[NUM_PAGES];
-// depreciate?
+bool VM_ENABLED;
+
+/* Kernel Functions */
+int SetKernelBrk(void *addr) {
+  printf("in set kernel brk\n");
+  printf("address value: %p\n", addr);
+
+  if (VM_ENABLED) {
+    //TODO
+  } else {
+    // vm is disabled, just move brk pointer up
+    KERNEL_HEAP_LIMIT = addr;
+  }
+  return 0;
+}
+
 static struct pte *page_table1_p = page_table1;
 
 /*

@@ -31,10 +31,10 @@ void *KERNEL_HEAP_LIMIT;
 int initialize_frames(int num_frames);
 int set_frame(int index, int status);
 int len_free_frames();
-void debug_frames();
 
-/* Methods */
+/* Debug functions*/
 void debug_page_tables(struct pte *table, int verbosity);
 void debug_stack_frame(ExceptionStackFrame *frame);
+void debug_frames();
 
 #endif	/* end _yalnix_mem_h */
