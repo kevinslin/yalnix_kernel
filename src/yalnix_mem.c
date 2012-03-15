@@ -89,4 +89,62 @@ len_free_frames() {
 	return count_free;
 }
 
+/*
+ * We the index of the next available free farme.
+ * -1 if there are no free frames
+ */
+int get_free_frame() {
+  int i;
+	for (i=0; i<NUM_FRAMES; i++) {
+		if ((*(frames_p + i)).free == FRAME_FREE) {
+      set_frame(i, FRAME_NOT_FREE);
+      return i;
+		}
+	}
+  return -1;
+}
+
+/*
+ * Create a page table with no valid page tables
+ */
+int create_page_table(struct pte *page_table) {
+  int i;
+  page_table = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
+  if (page_table == NULL) {
+    return -1;
+  }
+  return reset_page_table(page_table);
+}
+
+int reset_page_table(struct pte *page_table) {
+  for (i=0; i<NUM_PAGES; i++) {
+    (page_table + i)->pfn = PFN_INVALID;
+    (page_table + i)->valid = PTE_INVALID;
+    (page_table + i)->uprot = PROT_NONE;
+    (page_table + i)->kprot = PROT_NONE;
+  }
+  return 1;
+}
+
+/*
+ * Reset page tables but keep kernel heap
+ * Set all frames pointed to by page table to free
+ */
+int reset_page_table_limited(struct pte *page_table) {
+  for (i=0; i<get_page_index(KERNEL_STACK_BASE); i++) {
+    (page_table + i)->pfn = PFN_INVALID;
+    (page_table + i)->valid = PTE_INVALID;
+    (page_table + i)->uprot = PROT_NONE;
+    (page_table + i)->kprot = PROT_NONE;
+    set_frame((page_table + i)->pfn, FRAME_FREE);
+  }
+  return 1;
+}
+
+//TODO:
+int free_page_table(struct pte *page_table) {
+  reset_page_table_limited(page_table); //FIXME
+  free(page_table);
+  return -1;
+}
 

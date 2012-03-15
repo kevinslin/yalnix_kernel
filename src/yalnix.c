@@ -9,11 +9,12 @@
 //#include "yalnix_kernel.c"
 #include "yalnix_mem.h"
 //#include "load.c"
-#define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
+//
+/* Extern */
+extern int LoadProgram(char *name, char **args, ExceptionStackFrame *frame);
 
 /* Globals */
 static void *interrupt_vector_table[TRAP_VECTOR_SIZE];
-static struct pte page_table1[NUM_PAGES];
 bool VM_ENABLED;
 
 /* Kernel Functions */
@@ -29,8 +30,6 @@ int SetKernelBrk(void *addr) {
   }
   return 0;
 }
-
-static struct pte *page_table1_p = page_table1;
 
 /*
  * Idle process
@@ -51,7 +50,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   int kernel_text_limit_index;
   int kernel_stack_base_index;
   int kernel_stack_limit_index;
-  //int is_valid;
+  int is_valid;
 
   /* Get memory size*/
   num_frames = pmem_size / PAGESIZE;
@@ -62,7 +61,11 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   /* Frames and Tables*/
   initialize_frames(num_frames);
-  struct pte *page_table0_p = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
+  //struct pte *page_table0_p = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
+  is_valid = create_page_table(page_table0_p);
+  assert(is_valid > 0);
+
+  //TODO: create page table
 
   /* TODO: Initialize interrupt vector table */
   interrupt_vector_table[TRAP_KERNEL] = &interrupt_kernel;
@@ -83,11 +86,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   /* Initialize all page table entries to invalid */
   for (i=0; i< NUM_PAGES; i++) {
-    // Region 0
-    (page_table0_p + i)->pfn = PFN_INVALID;
-    (page_table0_p + i)->valid = PTE_INVALID;
-    (page_table0_p + i)->uprot = PROT_NONE;
-    (page_table0_p + i)->kprot = PROT_NONE;
     // Region 1
     (page_table1_p + i)->pfn = PFN_INVALID;
     (page_table1_p + i)->valid = PTE_INVALID;
