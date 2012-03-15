@@ -31,6 +31,9 @@ Bucket
 		-> process control block
 		-> other data structures
 
+0.3
+  Be able to load init process
+
 0.2
 	Abstract methods to access frames and no crashes
 

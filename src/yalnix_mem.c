@@ -1,9 +1,54 @@
-#include <stdlib.h>
 #include "yalnix_mem.h"
 
+/* Debug functions */
+void
+debug_page_tables(struct pte *table, int verbosity) {
+  int i;
+  if (verbosity) {
+    for (i=0; i<NUM_PAGES; i++) {
+      printf("i:%i, pfn: %u, valid: %u\n", i, (table + i)->pfn, (table + i)->valid);
+    }
+  } // end verbosity
+}
 
-#define FRAME_NOT_FREE -1
-#define FRAME_FREE 1
+// Debug stack frame
+void
+debug_stack_frame(ExceptionStackFrame *frame) {
+  printf("vector: %i\n", frame->vector); // type of interrupt
+  printf("code: %i\n", frame->code); // additional info for interrupt
+  printf("processor status register: %lu\n", frame->psr); /*if (psr & PSR_MODE), then kernel mode */
+  printf("address: %p\n", frame->addr); /* contains memory address of TRAP_MEMORY Exception */
+  printf("pc: %p\n", frame->pc); /* pc at time of interrupt */
+  printf("sp: %p\n", frame->sp); /* stack pointer value at time of interrupt */
+  printf(DIVIDER);
+}
+
+/* Debug physical frames */
+void
+debug_frames(int verbosity) {
+	int i;
+	printf("lim address: %p\n", frames_p + NUM_FRAMES);
+	printf("base address: %p\n", frames_p);
+	printf("free frames: %i\n", len_free_frames());
+	printf("num frames: %i\n", NUM_FRAMES);
+	if (verbosity) {
+		for(i=0; i<NUM_FRAMES; i++) {
+			printf("address: %p ", frames_p + i);
+			if ((frames_p + i)->free == FRAME_FREE) {
+				printf("mem free\n");
+			} else if ((frames_p + i)->free == FRAME_NOT_FREE) {
+				printf("mem not free\n");
+			} else {
+				printf("invalid frame entry: %i\n",(frames_p + i)->free);
+			}
+		}
+	}// end verbosity
+	printf("=============\n");
+}
+
+
+
+/* Frame Functions */
 /*
  * Initialize all frames to free.
  */
@@ -43,29 +88,5 @@ len_free_frames() {
 	}
 	return count_free;
 }
-
-
-void
-debug_frames(int verbosity) {
-	int i;
-	printf("lim address: %p\n", frames_p + NUM_FRAMES);
-	printf("base address: %p\n", frames_p);
-	printf("free frames: %i\n", len_free_frames());
-	printf("num frames: %i\n", NUM_FRAMES);
-	if (verbosity) {
-		for(i=0; i<NUM_FRAMES; i++) {
-			printf("address: %p ", frames_p + i);
-			if ((frames_p + i)->free == FRAME_FREE) {
-				printf("mem free\n");
-			} else if ((frames_p + i)->free == FRAME_NOT_FREE) {
-				printf("mem not free\n");
-			} else {
-				printf("invalid frame entry: %i\n",(frames_p + i)->free);
-			}
-		}
-	}// end verbosity
-	printf("=============\n");
-}
-
 
 

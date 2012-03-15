@@ -1,5 +1,8 @@
 #include <comp421/hardware.h>
 #include "yalnix_mem.h"
+
+/* TODO: dirty hack */
+bool VM_ENABLED;
 /*
  *  Increment brk pointer
  *  Returns on success

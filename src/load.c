@@ -1,10 +1,3 @@
->>>> THIS FILE IS ONLY A TEMPLATE FOR YOUR LoadProgram FUNCTION
-
->>>> You MUST edit each place marked by ">>>>" below to replace
->>>> the ">>>>" description with code for your kernel to implement the
->>>> behavior described.  You might also want to save the original
->>>> annotations as comments.
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
@@ -140,6 +133,7 @@ LoadProgram(char *name, char **args)
    *  And make sure there will be enough physical memory to
    *  load the new program.
    */
+  /*
   >>>> The new program will require text_npg pages of text,
     >>>> data_bss_npg pages of data/bss, and stack_npg pages of
       >>>> stack.  In checking that there is enough free physical
@@ -147,6 +141,7 @@ LoadProgram(char *name, char **args)
       >>>> pages already allocated to this process that will be
       >>>> freed below before we allocate the needed pages for
       >>>> the new program being loaded.
+    */
       if (>>>> not enough free physical memory) {
         TracePrintf(0,
             "LoadProgram: program '%s' size too large for physical memory\n",
