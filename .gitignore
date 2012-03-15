@@ -11,4 +11,7 @@ src/TRACE
 src/TTY*
 
 cscope.*
+*.o
+*.out
+
 

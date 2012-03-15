@@ -4,19 +4,12 @@
 #include <comp421/yalnix.h>
 #include <comp421/hardware.h>
 
-#include "utils.h"
+#include "simpleutils.c"
 #include "yalnix_kernel.c"
 #include "yalnix_mem.c"
 //#include "load.c"
 
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
-
-// Page table constants
-#define NUM_PAGES 512
-#define PTE_VALID 1
-#define PTE_INVALID 0
-#define PFN_INVALID  -1
-#define TABLE1_OFFSET 512
 
 
 
@@ -69,16 +62,21 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   int kernel_text_limit_index;
   int kernel_stack_base_index;
   int kernel_stack_limit_index;
+  dprintf("in kernel start...", 0);
 
   /* Get memory size*/
   num_frames = pmem_size / PAGESIZE;
   assert(num_frames > 0); // silly...
+  /* Get kernel addresses */
+  KERNEL_HEAP_LIMIT = orig_brk;
+
 
   /* Frames and Tables*/
-  /*initialize_frames(num_frames);*/
+  initialize_frames(num_frames);
   struct pte *page_table0_p = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
-  struct pte *page_table1_p = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
   debug_frames(0);
+  dprintf("malloced for page tables and frames...", 0);
+
 
   /* TODO: Initialize interrupt vector table */
   interrupt_vector_table[TRAP_KERNEL] = &interrupt_kernel;
@@ -127,10 +125,13 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
    * MEM_INVALID
    * VMEM_0_BASE (0)
    */
-  kernel_heap_limit_index = get_page_index(orig_brk);
+
+  kernel_heap_limit_index = get_page_index(KERNEL_HEAP_LIMIT);
   kernel_text_limit_index = get_page_index(&_etext);
   kernel_stack_limit_index = get_page_index(KERNEL_STACK_LIMIT);
   kernel_stack_base_index = get_page_index(KERNEL_STACK_BASE);
+  printf("orig_brk: %p\n", orig_brk);
+  printf("text: %p\n", &_etext);
 
   /* Map physical pages to corresponding virtual addresses */
   // TABLE1_OFFSET neccessary to account for VMEM_1_BASE higher starting address

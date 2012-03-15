@@ -38,7 +38,7 @@ def test():
 
 def push():
     global RSYNC_EXCLUDE
-    extra_opts = ""
+    extra_opts = "--delete"
     rsync_project(
         remote_dir = REMOTE_DIR,
         local_dir = ".",
