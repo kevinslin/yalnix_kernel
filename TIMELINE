@@ -21,6 +21,9 @@ Bucket
 	- setkernelbrk (grow kernel heap)
 	- brk (grow user heap)
 
+0.5
+  Kernel Interrupts
+
 0.4
 	Context Switch
 	- switch between init and idle
