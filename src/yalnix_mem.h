@@ -43,8 +43,6 @@ struct pcb{
   unsigned long psr_next;
 };
 
-/* Globals */
-int PID = 0;
 /* Frame Stuff */
 int NUM_FRAMES; /* number of frames, obtained by dividing pmem_size / pagesize */
 page_frames *frames_p;
@@ -66,7 +64,7 @@ int reset_page_table(struct pte *page_table);
 int reset_page_table_limited(struct pte *page_table);
 int free_page_table(struct pte *page_table);
 /* PCB functions */
-int create_pcb(struct pcb *pcb_p);
+int create_pcb(struct pcb *pcb_p, struct pcb *parent, struct pte page_table);
 int free_pcb(struct pcb *pcb_p);
 
 /* Debug functions*/

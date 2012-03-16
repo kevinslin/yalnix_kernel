@@ -1,5 +1,8 @@
 #include "yalnix_mem.h"
 
+/* Globals */
+int PID = 0;
+
 /* Debug functions */
 void
 debug_page_tables(struct pte *table, int verbosity) {
@@ -49,7 +52,7 @@ debug_frames(int verbosity) {
 
 /* Misc Functions */
 int get_next_pid() {
-  return ++i;
+  return ++PID;
 }
 
 /* Frame Functions */
@@ -119,6 +122,9 @@ int create_page_table(struct pte *page_table) {
   return reset_page_table(page_table);
 }
 
+/*
+ * Clone pt2 into pt1
+ */
 int clone_page_table(struct pte *pt1, struct pte *pt2) {
   int i;
   for (i=0; i<NUM_PAGES; i++) {
@@ -183,5 +189,7 @@ int create_pcb(struct pcb *pcb_p, struct pcb *parent, struct pte page_table) {
   return 1;
 }
 
+//TODO
 int free_pcb(struct pcb *pcb_p) {
+  return 1;
 }

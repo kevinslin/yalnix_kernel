@@ -6,15 +6,18 @@
 
 #include "simpleutils.h"
 #include "yalnix_interrupts.h"
-//#include "yalnix_kernel.c"
 #include "yalnix_mem.h"
-//#include "load.c"
-//
+
+
+SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2);
+SavedContext* forkswitchfunction(SavedContext *ctxp, void *p1, void *p2 );
+
 /* Extern */
 extern int LoadProgram(char *name, char **args, ExceptionStackFrame *frame);
 
 /* Globals */
-static void *interrupt_vector_table[TRAP_VECTOR_SIZE];
+void *interrupt_vector_table[TRAP_VECTOR_SIZE];
+struct pcb *pcb_current;
 bool VM_ENABLED;
 
 struct pte page_table1[NUM_PAGES];
@@ -26,8 +29,15 @@ int SetKernelBrk(void *addr) {
   printf("address value: %p\n", addr);
 
   if (VM_ENABLED) {
+    //get the current page which should be the kernerlbrk
+    //get page of the addr we need to go to
+    //if the current page is less than the neededpage we need to free some memory
+    //otherwise need to increase memory
+    //check to see if there is enough memory
+    //need to get the vpn address somehow in order to accurately update the pte
+    //make sure to TLB_FLUSH_1
     //TODO
-  } else {
+ } else {
     // vm is disabled, just move brk pointer up
     KERNEL_HEAP_LIMIT = addr;
   }
@@ -46,6 +56,9 @@ void process_idle() {
 
 // Interrupt kernel
 void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
+
+  //Possibly have a global pcb which represents the current active process
+
   /* Init vars */
   int i;
   int num_frames;
@@ -181,11 +194,58 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   WriteRegister( REG_VM_ENABLE, (RCS421RegVal) 1);
 
   //is_valid = LoadProgram("test1.c", void *);
+  struct pte *idle_table;
+  struct pcb *idle_pcb;
 
-  /* Create an idle process */
-  process_idle();
+  if (0 > create_page_table(idle_table)) {
+    printf("error creating page table\n");
+    exit(1);
+  }
+  if (0 > create_pcb(idle_pcb, NULL, *idle_table)) {
+    printf("error creating pcb\n");
+    exit(1);
+  }
+  pcb_current = idle_pcb;
+  // Get contents of current pcb
+  SavedContext *ctx = &(pcb_current->context);
 
-  // Test
-  printf("hello world!");
+  if(ContextSwitch(initswitchfunction, ctx, idle_pcb, NULL) == -1){
+    printf("error with initswitching \n");
+    exit(1);
+  }
+  if(LoadProgram("idle", cmd_args, frame) != 0) {
+    //error error error
+  }
+  idle_pcb->pc_next = frame->pc;
+  idle_pcb->sp_next = frame->sp;
+  idle_pcb->psr_next = frame->psr;
+  idle_pcb->frame = frame;
+
+  printf("done!");
 }
 
+/*
+ * Performs first context switch into idle
+ */
+SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
+  struct pcb *p = (struct pcb *) p1;
+  struct pte *page = &(p->page_table);
+  clone_page_table(page_table0_p, page);
+  WriteRegister( REG_PTR0, (RCS421RegVal) page);
+  if (VM_ENABLED) {
+    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+  }
+  return ctxp;
+}
+
+/*
+ * Context switch from fork
+ */
+SavedContext* forkswitchfunction(SavedContext *ctxp, void *p1, void *p2 ){
+  struct pcb *parent = p1;
+  struct pcb *child = p2;
+  struct pte *parent_table = &(parent->page_table);
+  struct pte *child_table = &(child->page_table);
+  clone_page_table(parent_table, child_table);
+  return ctxp;
+}
