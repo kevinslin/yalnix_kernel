@@ -26,7 +26,7 @@
  *  is no longer runnable, and this function returns -2 for errors
  *  in this case.
  */
-  int
+int
 LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
 {
   int fd;

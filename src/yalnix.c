@@ -29,6 +29,7 @@ int SetKernelBrk(void *addr) {
   printf("address value: %p\n", addr);
 
   if (VM_ENABLED) {
+    printf("vm has been enabled...\n");
     //get the current page which should be the kernerlbrk
     //get page of the addr we need to go to
     //if the current page is less than the neededpage we need to free some memory
@@ -38,6 +39,7 @@ int SetKernelBrk(void *addr) {
     //make sure to TLB_FLUSH_1
     //TODO
  } else {
+   printf("vm not enabled...\n");
     // vm is disabled, just move brk pointer up
     KERNEL_HEAP_LIMIT = addr;
   }
@@ -122,7 +124,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
    * KERNEL_STACK_LIMIT/VMEM_0_LIMIT (512)
    * ...
    * KERNEL_STACK_BASE (508)
-   *
+   * ...
    * User Stack LIMIT
    * ...
    * MEM_INVALID
@@ -185,29 +187,37 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   WriteRegister( REG_PTR1, (RCS421RegVal) page_table1_p);
 
-  /* Enable virtual memory */
-  WriteRegister( REG_VM_ENABLE, (RCS421RegVal) 1);
-  VM_ENABLED = true;
 
-  struct pte *idle_table;
-  struct pcb *idle_pcb;
+  struct pcb *init_pcb;
 
-  idle_table = create_page_table(idle_table);
-  if (idle_table == NULL) {
-    printf("error creating page table\n");
-    exit(1);
-  }
-  idle_pcb = create_pcb(NULL, *idle_table);
-  if (idle_pcb == NULL) {
+  init_pcb = create_pcb(NULL);
+  if (init_pcb == NULL) {
     printf("error creating pcb\n");
     exit(1);
   }
-  pcb_current = idle_pcb;
-  idle_table = clone_page_table(page_table0_p);
+  printf("created pcb...\n");
 
+
+  pcb_current = init_pcb;
   // Get contents of current pcb
   SavedContext *ctx = &(pcb_current->context);
+  // Clone page0 into current context
+  struct pte *page = init_pcb->page_table;
+  page = clone_page_table(page_table0_p);
+  page_table0_p = page;
 
+  printf("writing new ptr0...\n");
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
+  printf("page 508: %u\n", (page + 508)->valid);
+
+
+  /* Enable virtual memory */
+  printf("enabling virtual memory...\n");
+  WriteRegister( REG_VM_ENABLE, (RCS421RegVal) 1);
+  VM_ENABLED = true;
+  printf("enabled virtual memory...\n");
+
+  printf("about to load program...\n");
   /*if(ContextSwitch(initswitchfunction, ctx, idle_pcb, NULL) == -1){*/
     /*printf("error with initswitching \n");*/
     /*exit(1);*/
@@ -215,10 +225,16 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   if(LoadProgram("init", cmd_args, frame) != 0) {
     //error error error
   }
-  idle_pcb->pc_next = frame->pc;
-  idle_pcb->sp_next = frame->sp;
-  idle_pcb->psr_next = frame->psr;
-  idle_pcb->frame = frame;
+  printf("finished loading program...\n");
+  fflush(stdout);
+  /*idle_pcb->pc_next = frame->pc;*/
+  /*idle_pcb->sp_next = frame->sp;*/
+  /*idle_pcb->psr_next = frame->psr;*/
+  /*idle_pcb->frame = frame;*/
+
+  if (VM_ENABLED) {
+    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+  }
 
   printf("done!");
 }
@@ -229,7 +245,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page = &(p->page_table);
-  page_table0_p = clone_page_table(page);
+  page = clone_page_table(page_table0_p);
   WriteRegister( REG_PTR0, (RCS421RegVal) page);
   if (VM_ENABLED) {
     WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);

@@ -132,10 +132,10 @@ struct pte *clone_page_table(struct pte *src) {
   int i;
   struct pte *dest = create_page_table();
   for (i=0; i<NUM_PAGES; i++) {
-    dest[i].pfn = (src + i)->pfn;
-    dest[i].valid = (src +i)->valid;
-    dest[i].uprot = (src +i)->uprot;
-    dest[i].kprot = (src +i)->kprot;
+    (dest + i)->pfn = (src + i)->pfn;
+    (dest + i)->valid = (src +i)->valid;
+    (dest + i)->uprot = (src +i)->uprot;
+    (dest + i)->kprot = (src +i)->kprot;
   }
   return dest;
 }
@@ -169,15 +169,7 @@ struct pte *reset_page_table_limited(struct pte *page_table) {
   return page_table;
 }
 
-//TODO:
-int free_page_table(struct pte *page_table) {
-  reset_page_table_limited(page_table); //FIXME
-  free(page_table);
-  return -1;
-}
-
-/* PCB Functions */
-struct pcb *create_pcb(struct pcb *parent, struct pte page_table) {
+struct pcb *create_pcb(struct pcb *parent) {
   struct pcb *pcb_p = (struct pcb *)malloc(sizeof(struct pcb));
   if (pcb_p == NULL) {
     return NULL;
@@ -186,7 +178,6 @@ struct pcb *create_pcb(struct pcb *parent, struct pte page_table) {
   pcb_p->time_current = 0;
   pcb_p->time_delay = 0;
   pcb_p->status = 0;
-  pcb_p->page_table = page_table;
   pcb_p->parent = parent;
   pcb_p->frame = NULL;
   pcb_p->pc_next = NULL;

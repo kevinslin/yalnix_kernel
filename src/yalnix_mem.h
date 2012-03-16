@@ -33,7 +33,7 @@ struct pcb{
   void *brk; //heap limit
   void *stack_limit;
   SavedContext context;
-  struct pte page_table;
+  struct pte page_table[NUM_PAGES];
   struct pcb *parent;
   struct pcb *children_active[5];
   struct pcb *children_wait[5];
@@ -64,7 +64,7 @@ struct pte *reset_page_table(struct pte *page_table);
 struct pte *reset_page_table_limited(struct pte *page_table);
 int free_page_table(struct pte *page_table);
 /* PCB functions */
-struct pcb *create_pcb(struct pcb *parent, struct pte page_table);
+struct pcb *create_pcb(struct pcb *parent);
 int free_pcb(struct pcb *pcb_p);
 
 /* Debug functions*/
