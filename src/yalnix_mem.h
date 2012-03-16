@@ -43,14 +43,14 @@ struct pcb{
   unsigned long psr_next;
 };
 
+/* Pcb stuff */
+struct pcb *pcb_current;
 /* Frame Stuff */
 int NUM_FRAMES; /* number of frames, obtained by dividing pmem_size / pagesize */
 page_frames *frames_p;
 void *KERNEL_HEAP_LIMIT;
 /* Page table stuff */
 struct pte *page_table0_p;
-/* Misc Functions */
-int get_next_pid();
 
 /* Frame Functions */
 int initialize_frames(int num_frames);
@@ -64,6 +64,7 @@ struct pte *reset_page_table(struct pte *page_table);
 struct pte *reset_page_table_limited(struct pte *page_table);
 int free_page_table(struct pte *page_table);
 /* PCB functions */
+struct pcb *Create_pcb(struct pcb *parent);
 struct pcb *create_pcb(struct pcb *parent);
 int free_pcb(struct pcb *pcb_p);
 
@@ -71,5 +72,8 @@ int free_pcb(struct pcb *pcb_p);
 void debug_page_tables(struct pte *table, int verbosity);
 void debug_stack_frame(ExceptionStackFrame *frame);
 void debug_frames();
+
+/* Misc Functions */
+int get_next_pid();
 
 #endif	/* end _yalnix_mem_h */

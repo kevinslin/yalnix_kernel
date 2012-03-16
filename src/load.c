@@ -44,6 +44,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
   int data_bss_npg;
   int stack_npg;
 	int j,k;
+	printf("[debug]: in loadprogram...\n");
 
   TracePrintf(0, "LoadProgram '%s', args %p\n", name, args);
 

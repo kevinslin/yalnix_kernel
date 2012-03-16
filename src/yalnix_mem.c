@@ -169,6 +169,9 @@ struct pte *reset_page_table_limited(struct pte *page_table) {
   return page_table;
 }
 
+/*
+ * Malloc pcb space
+ */
 struct pcb *create_pcb(struct pcb *parent) {
   struct pcb *pcb_p = (struct pcb *)malloc(sizeof(struct pcb));
   if (pcb_p == NULL) {
@@ -188,5 +191,16 @@ struct pcb *create_pcb(struct pcb *parent) {
 
 //TODO
 int free_pcb(struct pcb *pcb_p) {
+  free(pcb_p);
   return 1;
+}
+
+struct pcb *Create_pcb(struct pcb *parent) {
+  struct pcb *a_pcb;
+  a_pcb = create_pcb(parent);
+  if (a_pcb == NULL) {
+    printf("error creating pcb\n");
+    exit(1);
+  }
+  return a_pcb;
 }

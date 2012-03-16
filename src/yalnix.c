@@ -8,7 +8,6 @@
 #include "yalnix_interrupts.h"
 #include "yalnix_mem.h"
 
-
 SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2);
 SavedContext* forkswitchfunction(SavedContext *ctxp, void *p1, void *p2 );
 
@@ -17,22 +16,52 @@ extern int LoadProgram(char *name, char **args, ExceptionStackFrame *frame);
 
 /* Globals */
 void *interrupt_vector_table[TRAP_VECTOR_SIZE];
-struct pcb *pcb_current;
 bool VM_ENABLED;
+char **args_copy;
 
 struct pte page_table1[NUM_PAGES];
 struct pte *page_table1_p = page_table1;
 
 /* Kernel Functions */
 int SetKernelBrk(void *addr) {
+  int kernel_heap_limit_index;
+  int addr_index;
+  int pages_needed;
+  int i;
+  int frame;
+
   printf("in set kernel brk\n");
   printf("address value: %p\n", addr);
 
   if (VM_ENABLED) {
     printf("vm has been enabled...\n");
+    kernel_heap_limit_index = get_page_index(KERNEL_HEAP_LIMIT);
+    addr_index = get_page_index(addr);
+    pages_needed = addr_index - kernel_heap_limit_index;
+    printf("pages needed: %i\n", pages_needed);
+    // Need more memory
+    if (pages_needed > 0) {
+      if (len_free_frames() >= pages_needed) {
+        printf("free pages: %i\n", len_free_frames());
+        for (i = 0; i < pages_needed; i++) {
+          frame = get_free_frame();
+          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET + i)->valid = PTE_VALID;
+          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET + i)->pfn = frame;
+          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET + i)->uprot = PROT_NONE;
+          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET + i)->kprot = (PROT_READ | PROT_WRITE);
+        }
+        KERNEL_HEAP_LIMIT = addr;
+        WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_1);
+        printf("[debug]:finished allocating memory...\n");
+        return 0;
+      } else {
+        // not enough free memory
+        return -1;
+      }
+    }
     //get the current page which should be the kernerlbrk
     //get page of the addr we need to go to
-    //if the current page is less than the neededpage we need to free some memory
+    //if the current page is less than the neededpage we need to free some memory TODO
     //otherwise need to increase memory
     //check to see if there is enough memory
     //need to get the vpn address somehow in order to accurately update the pte
@@ -44,16 +73,6 @@ int SetKernelBrk(void *addr) {
     KERNEL_HEAP_LIMIT = addr;
   }
   return 0;
-}
-
-/*
- * Idle process
- */
-void process_idle() {
-  for (;;){
-    Pause();
-    printf("idling...\n");
-  }
 }
 
 // Interrupt kernel
@@ -69,12 +88,16 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   int kernel_stack_base_index;
   int kernel_stack_limit_index;
 
+  /* TMP */
+  args_copy = cmd_args; //TODO: hack!
+
+
+
   /* Get memory size*/
   num_frames = pmem_size / PAGESIZE;
   assert(num_frames > 0); // silly...
   /* Get kernel addresses */
   KERNEL_HEAP_LIMIT = orig_brk;
-
 
   /* Frames and Tables*/
   initialize_frames(num_frames);
@@ -190,26 +213,18 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   struct pcb *init_pcb;
 
-  init_pcb = create_pcb(NULL);
-  if (init_pcb == NULL) {
-    printf("error creating pcb\n");
-    exit(1);
-  }
+  init_pcb = Create_pcb(NULL);
   printf("created pcb...\n");
-
-
   pcb_current = init_pcb;
-  // Get contents of current pcb
-  SavedContext *ctx = &(pcb_current->context);
+  pcb_current->pc_next = frame->pc;
+  pcb_current->sp_next = frame->sp;
+  pcb_current->psr_next = frame->psr;
+  pcb_current->frame = frame;
+
   // Clone page0 into current context
   struct pte *page = init_pcb->page_table;
   page = clone_page_table(page_table0_p);
   page_table0_p = page;
-
-  printf("writing new ptr0...\n");
-  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
-  printf("page 508: %u\n", (page + 508)->valid);
-
 
   /* Enable virtual memory */
   printf("enabling virtual memory...\n");
@@ -217,20 +232,16 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   VM_ENABLED = true;
   printf("enabled virtual memory...\n");
 
+  printf("writing new ptr0...\n");
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
+  printf("page 508: %u\n", (page + 508)->valid);
+
   printf("about to load program...\n");
-  /*if(ContextSwitch(initswitchfunction, ctx, idle_pcb, NULL) == -1){*/
-    /*printf("error with initswitching \n");*/
-    /*exit(1);*/
-  /*}*/
   if(LoadProgram("init", cmd_args, frame) != 0) {
     //error error error
   }
   printf("finished loading program...\n");
   fflush(stdout);
-  /*idle_pcb->pc_next = frame->pc;*/
-  /*idle_pcb->sp_next = frame->sp;*/
-  /*idle_pcb->psr_next = frame->psr;*/
-  /*idle_pcb->frame = frame;*/
 
   if (VM_ENABLED) {
     WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
@@ -239,17 +250,28 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   printf("done!");
 }
 
+/* Context switches */
 /*
  * Performs first context switch into idle
  */
 SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
-  struct pte *page = &(p->page_table);
+  struct pte *page = (p->page_table);
+  printf("in initswitchfunction...\n");
+  fflush(stdout);
+
+  //TODO: andrew told me to trust him...
   page = clone_page_table(page_table0_p);
-  WriteRegister( REG_PTR0, (RCS421RegVal) page);
+  page_table0_p = page;
+  /*unsigned int pfn:20;*/
+  /*pfn = (page_table0_p + get_page_index(page_table0_p))->pfn;*/
+
+  //WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
+  printf("[debug]: page 508: %u\n", (page_table0_p + 508)->valid);
   if (VM_ENABLED) {
     WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   }
+
   return ctxp;
 }
 
@@ -259,8 +281,21 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
 SavedContext* forkswitchfunction(SavedContext *ctxp, void *p1, void *p2 ){
   struct pcb *parent = p1;
   struct pcb *child = p2;
-  struct pte *parent_table = &(parent->page_table);
-  struct pte *child_table = &(child->page_table);
+  struct pte *parent_table = (parent->page_table);
+  struct pte *child_table = (child->page_table);
   parent_table = clone_page_table(child_table);
   return ctxp;
+}
+
+void start_idle(ExceptionStackFrame *frame) {
+  struct pcb *idle_pcb;
+  idle_pcb = Create_pcb(NULL);
+  pcb_current = idle_pcb;
+  idle_pcb->frame = frame;
+
+  // Initiate context switch
+  SavedContext *ctx = &(pcb_current->context);
+  ContextSwitch(initswitchfunction, ctx, idle_pcb, NULL);
+  printf("[debug]: finished context switching...\n");
+  LoadProgram("idle", args_copy, frame);
 }
