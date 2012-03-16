@@ -172,7 +172,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
       >>>> memory page indicated by that PTE's pfn field.  Set all
       >>>> of these PTEs to be no longer valid.
 			*/
-			reset_page_table_limited(page_table0_p);
+			page_table0_p = reset_page_table_limited(page_table0_p);
 
 
       /*

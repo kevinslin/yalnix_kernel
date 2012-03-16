@@ -130,17 +130,17 @@ struct pte *create_page_table() {
  */
 struct pte *clone_page_table(struct pte *src) {
   int i;
-  struct pte dest[NUM_PAGES];
+  struct pte *dest = create_page_table();
   for (i=0; i<NUM_PAGES; i++) {
     dest[i].pfn = (src + i)->pfn;
     dest[i].valid = (src +i)->valid;
     dest[i].uprot = (src +i)->uprot;
     dest[i].kprot = (src +i)->kprot;
   }
-  return &dest;
+  return dest;
 }
 
-int reset_page_table(struct pte *page_table) {
+struct pte *reset_page_table(struct pte *page_table) {
   int i;
   for (i=0; i<NUM_PAGES; i++) {
     (page_table + i)->pfn = PFN_INVALID;
@@ -148,23 +148,25 @@ int reset_page_table(struct pte *page_table) {
     (page_table + i)->uprot = PROT_NONE;
     (page_table + i)->kprot = PROT_NONE;
   }
-  return 1;
+  return page_table;
 }
 
 /*
  * Reset page tables but keep kernel heap
  * Set all frames pointed to by page table to free
  */
-int reset_page_table_limited(struct pte *page_table) {
+struct pte *reset_page_table_limited(struct pte *page_table) {
   int i;
   for (i=0; i<get_page_index(KERNEL_STACK_BASE); i++) {
+    if ((page_table + i)->valid == PTE_VALID) {
+      set_frame((page_table + i)->pfn, FRAME_FREE);
+    }
     (page_table + i)->pfn = PFN_INVALID;
     (page_table + i)->valid = PTE_INVALID;
     (page_table + i)->uprot = PROT_NONE;
     (page_table + i)->kprot = PROT_NONE;
-    set_frame((page_table + i)->pfn, FRAME_FREE);
   }
-  return 1;
+  return page_table;
 }
 
 //TODO:
@@ -184,8 +186,6 @@ struct pcb *create_pcb(struct pcb *parent, struct pte page_table) {
   pcb_p->time_current = 0;
   pcb_p->time_delay = 0;
   pcb_p->status = 0;
-
-  pcb->context = NULL;
   pcb_p->page_table = page_table;
   pcb_p->parent = parent;
   pcb_p->frame = NULL;

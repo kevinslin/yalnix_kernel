@@ -208,10 +208,10 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   // Get contents of current pcb
   SavedContext *ctx = &(pcb_current->context);
 
-  if(ContextSwitch(initswitchfunction, ctx, idle_pcb, NULL) == -1){
-    printf("error with initswitching \n");
-    exit(1);
-  }
+  /*if(ContextSwitch(initswitchfunction, ctx, idle_pcb, NULL) == -1){*/
+    /*printf("error with initswitching \n");*/
+    /*exit(1);*/
+  /*}*/
   if(LoadProgram("idle", cmd_args, frame) != 0) {
     //error error error
   }
