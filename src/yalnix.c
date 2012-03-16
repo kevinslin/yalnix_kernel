@@ -203,6 +203,8 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
     exit(1);
   }
   pcb_current = idle_pcb;
+  idle_table = clone_page_table(page_table0_p);
+
   // Get contents of current pcb
   SavedContext *ctx = &(pcb_current->context);
 
@@ -227,7 +229,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page = &(p->page_table);
-  clone_page_table(page_table0_p, page);
+  page_table0_p = clone_page_table(page);
   WriteRegister( REG_PTR0, (RCS421RegVal) page);
   if (VM_ENABLED) {
     WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
@@ -243,6 +245,6 @@ SavedContext* forkswitchfunction(SavedContext *ctxp, void *p1, void *p2 ){
   struct pcb *child = p2;
   struct pte *parent_table = &(parent->page_table);
   struct pte *child_table = &(child->page_table);
-  clone_page_table(parent_table, child_table);
+  parent_table = clone_page_table(child_table);
   return ctxp;
 }

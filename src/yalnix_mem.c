@@ -128,15 +128,16 @@ struct pte *create_page_table() {
 /*
  * Clone pt2 into pt1
  */
-int clone_page_table(struct pte *pt1, struct pte *pt2) {
+struct pte *clone_page_table(struct pte *src) {
   int i;
+  struct pte dest[NUM_PAGES];
   for (i=0; i<NUM_PAGES; i++) {
-    (pt2 + i)->pfn = (pt1 +i)->pfn;
-    (pt2 + i)->valid = (pt1 +i)->valid;
-    (pt2 + i)->uprot = (pt1 +i)->uprot;
-    (pt2 + i)->kprot = (pt1 +i)->kprot;
+    dest[i].pfn = (src + i)->pfn;
+    dest[i].valid = (src +i)->valid;
+    dest[i].uprot = (src +i)->uprot;
+    dest[i].kprot = (src +i)->kprot;
   }
-  return 1;
+  return &dest;
 }
 
 int reset_page_table(struct pte *page_table) {
@@ -183,6 +184,8 @@ struct pcb *create_pcb(struct pcb *parent, struct pte page_table) {
   pcb_p->time_current = 0;
   pcb_p->time_delay = 0;
   pcb_p->status = 0;
+
+  pcb->context = NULL;
   pcb_p->page_table = page_table;
   pcb_p->parent = parent;
   pcb_p->frame = NULL;

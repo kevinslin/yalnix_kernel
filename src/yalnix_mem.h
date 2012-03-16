@@ -10,7 +10,7 @@
 
 #define PTE_VALID 1
 #define PTE_INVALID 0
-#define PFN_INVALID  -1
+#define PFN_INVALID  0xdeadb
 #define NUM_PAGES 512
 
 #define TABLE1_OFFSET 512
@@ -59,7 +59,7 @@ int len_free_frames();
 int get_free_frame();
 /* Page Functions */
 struct pte *create_page_table();
-int clone_page_table(struct pte *pt1, struct pte *pt2);
+struct pte *clone_page_table(struct pte *src);
 int reset_page_table(struct pte *page_table);
 int reset_page_table_limited(struct pte *page_table);
 int free_page_table(struct pte *page_table);
