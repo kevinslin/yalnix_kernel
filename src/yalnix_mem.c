@@ -114,12 +114,15 @@ int get_free_frame() {
 /*
  * Create a page table with no valid page tables
  */
-int create_page_table(struct pte *page_table) {
-  page_table = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
+struct pte *create_page_table() {
+  struct pte *page_table = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
   if (page_table == NULL) {
-    return -1;
+    return NULL;
   }
-  return reset_page_table(page_table);
+  if (0 > reset_page_table(page_table)) {
+    return NULL;
+  }
+  return page_table;
 }
 
 /*
@@ -171,10 +174,10 @@ int free_page_table(struct pte *page_table) {
 }
 
 /* PCB Functions */
-int create_pcb(struct pcb *pcb_p, struct pcb *parent, struct pte page_table) {
-  pcb_p = (struct pcb *)malloc(sizeof(struct pcb));
+struct pcb *create_pcb(struct pcb *parent, struct pte page_table) {
+  struct pcb *pcb_p = (struct pcb *)malloc(sizeof(struct pcb));
   if (pcb_p == NULL) {
-    return -1;
+    return NULL;
   }
   pcb_p->pid = get_next_pid();
   pcb_p->time_current = 0;
@@ -186,7 +189,7 @@ int create_pcb(struct pcb *pcb_p, struct pcb *parent, struct pte page_table) {
   pcb_p->pc_next = NULL;
   pcb_p->sp_next = NULL;
   pcb_p->psr_next = -1;
-  return 1;
+  return pcb_p;
 }
 
 //TODO

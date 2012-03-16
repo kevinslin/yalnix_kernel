@@ -66,7 +66,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   int kernel_text_limit_index;
   int kernel_stack_base_index;
   int kernel_stack_limit_index;
-  int is_valid;
 
   /* Get memory size*/
   num_frames = pmem_size / PAGESIZE;
@@ -77,13 +76,10 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   /* Frames and Tables*/
   initialize_frames(num_frames);
-  //struct pte *page_table0_p = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
-  is_valid = create_page_table(page_table0_p);
-  assert(is_valid > 0);
+  page_table0_p = create_page_table();
+  assert(page_table0_p != NULL);
 
-  //TODO: create page table
-
-  /* TODO: Initialize interrupt vector table */
+  /* Initialize interrupt vector table */
   interrupt_vector_table[TRAP_KERNEL] = &interrupt_kernel;
   interrupt_vector_table[TRAP_CLOCK] = &interrupt_clock;
   interrupt_vector_table[TRAP_ILLEGAL] = &interrupt_illegal;
@@ -92,8 +88,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   interrupt_vector_table[TRAP_TTY_RECEIVE] = &interrupt_kernel;
   interrupt_vector_table[TRAP_TTY_TRANSMIT] = &interrupt_kernel;
   interrupt_vector_table[TRAP_DISK] = &interrupt_kernel;
-
-  for (i=1; i < TRAP_VECTOR_SIZE; i++) {
+  for (i=8; i < TRAP_VECTOR_SIZE; i++) {
     interrupt_vector_table[i] = NULL;
   }
 
@@ -192,16 +187,18 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   /* Enable virtual memory */
   WriteRegister( REG_VM_ENABLE, (RCS421RegVal) 1);
+  VM_ENABLED = true;
 
-  //is_valid = LoadProgram("test1.c", void *);
   struct pte *idle_table;
   struct pcb *idle_pcb;
 
-  if (0 > create_page_table(idle_table)) {
+  idle_table = create_page_table(idle_table);
+  if (idle_table == NULL) {
     printf("error creating page table\n");
     exit(1);
   }
-  if (0 > create_pcb(idle_pcb, NULL, *idle_table)) {
+  idle_pcb = create_pcb(NULL, *idle_table);
+  if (idle_pcb == NULL) {
     printf("error creating pcb\n");
     exit(1);
   }

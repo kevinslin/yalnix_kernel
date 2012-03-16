@@ -58,13 +58,13 @@ int set_frame(int index, int status);
 int len_free_frames();
 int get_free_frame();
 /* Page Functions */
-int create_page_table(struct pte *page_table);
+struct pte *create_page_table();
 int clone_page_table(struct pte *pt1, struct pte *pt2);
 int reset_page_table(struct pte *page_table);
 int reset_page_table_limited(struct pte *page_table);
 int free_page_table(struct pte *page_table);
 /* PCB functions */
-int create_pcb(struct pcb *pcb_p, struct pcb *parent, struct pte page_table);
+struct pcb *create_pcb(struct pcb *parent, struct pte page_table);
 int free_pcb(struct pcb *pcb_p);
 
 /* Debug functions*/
