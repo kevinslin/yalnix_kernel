@@ -122,8 +122,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
   /*
    *  Make sure we will leave at least one page between heap and stack
    */
-  if (MEM_INVALID_PAGES + text_npg + data_bss_npg + stack_npg
-      1 + KERNEL_STACK_PAGES >= PAGE_TABLE_LEN) {
+  if (MEM_INVALID_PAGES + text_npg + data_bss_npg + stack_npg + 1 + KERNEL_STACK_PAGES >= PAGE_TABLE_LEN) {
     TracePrintf(0, "LoadProgram: program '%s' size too large for VM\n",
         name);
     free(argbuf);
@@ -144,7 +143,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
       >>>> freed below before we allocate the needed pages for
       >>>> the new program being loaded.
     */
-      if (len_free_frames < (text_npg + data_bss_npg + stack_npg)) {
+      if (len_free_frames() < (text_npg + data_bss_npg + stack_npg)) {
         TracePrintf(0,
             "LoadProgram: program '%s' size too large for physical memory\n",
             name);
@@ -152,6 +151,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
         close(fd);
         return (-1);
       }
+			//TODO: check if there's free physical memory after we've freed physical memory
 
 			/*
 		>>>> Initialize sp for the current process to (char *)cpp.
@@ -195,10 +195,10 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
       >>>>     pfn   = a new page of physical memory
 			*/
 			k = MEM_INVALID_PAGES;
-			for (int j = 0; j < text_npg; j++) {
+			for (j = 0; j < text_npg; j++) {
 				(page_table0_p + k)->valid = PTE_VALID;
 				(page_table0_p + k)->pfn = get_free_frame();
-				assert((page_table0_p + k)->pfn > 0)
+				//assert((page_table0_p + k)->pfn > 0)
 				(page_table0_p + k)->kprot = (PROT_READ | PROT_WRITE);
 				(page_table0_p + k)->uprot = (PROT_READ | PROT_EXEC);
 				k++;
@@ -214,10 +214,11 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
       >>>>     pfn   = a new page of physical memory
 			*/
 
-			for (int j = 0; j < data_bss_npg; j++) {
+			for (j = 0; j < data_bss_npg; j++) {
 				(page_table0_p + k)->valid = PTE_VALID;
 				(page_table0_p + k)->pfn = get_free_frame();
-				assert((page_table0_p + k)->pfn > 0)
+				//STATMENT: I don't feel good about this
+				//assert((page_table0_p + k)->pfn > 0)
 				(page_table0_p + k)->kprot = (PROT_READ | PROT_WRITE);
 				(page_table0_p + k)->uprot = (PROT_READ | PROT_WRITE);
 				k++;
@@ -237,11 +238,10 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
 			*/
 
 			// k should be equivalent to USER_STACK_BASE
-			k = get_page_index(USER_STACK_LMIT) - stack_npg;
-			for (int j = 0; j < stack_npg ; j++) {
+			k = get_page_index(USER_STACK_LIMIT) - stack_npg;
+			for (j = 0; j < stack_npg ; j++) {
 				(page_table0_p + k)->valid = PTE_VALID;
 				(page_table0_p + k)->pfn = get_free_frame();
-				assert((page_table0_p + k)->pfn > 0)
 				(page_table0_p + k)->kprot = (PROT_READ | PROT_WRITE);
 				(page_table0_p + k)->uprot = (PROT_READ | PROT_WRITE);
 				k++;
@@ -278,7 +278,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
 		>>>> pages, set each PTE's kprot to PROT_READ | PROT_EXEC.
 		*/
 			k = MEM_INVALID_PAGES;
-			for (int j = 0; j < text_npg; j++) {
+			for (j = 0; j < text_npg; j++) {
 				(page_table0_p + k)->kprot = (PROT_READ | PROT_EXEC);
 				k++;
 			}
@@ -296,7 +296,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
    *  Set the entry point in the exception frame.
    */
   //>>>> Initialize pc for the current process to (void *)li.entry
-		frame->pc = (void *)il.entry;
+		frame->pc = (void *)li.entry;
 
     /*
      *  Now, finally, build the argument list on the new stack.

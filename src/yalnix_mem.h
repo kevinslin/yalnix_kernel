@@ -17,25 +17,42 @@
 #define FRAME_NOT_FREE -1
 #define FRAME_FREE 1
 
+#define MAX_CHILDREN 5
+
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
 
 typedef struct {
   int free;
 } page_frames;
-typedef struct {
 
-} pcb;
+struct pcb{
+  unsigned int pid;
+  unsigned int time_current;
+  unsigned int time_delay; // time to wait before process is restarted
+  int status; // delayed, sleeping...
+  void *brk; //heap limit
+  void *stack_limit;
+  SavedContext context;
+  struct pte page_table;
+  struct pcb *parent;
+  struct pcb *children_active[5];
+  struct pcb *children_wait[5];
+  ExceptionStackFrame *frame;
+  void *pc_next;
+  void *sp_next;
+  unsigned long psr_next;
+};
 
+/* Globals */
+int PID = 0;
 /* Frame Stuff */
 int NUM_FRAMES; /* number of frames, obtained by dividing pmem_size / pagesize */
 page_frames *frames_p;
 void *KERNEL_HEAP_LIMIT;
 /* Page table stuff */
 struct pte *page_table0_p;
-struct pte page_table1[NUM_PAGES];
-struct pte *page_table1_p = page_table1;
-
-
+/* Misc Functions */
+int get_next_pid();
 
 /* Frame Functions */
 int initialize_frames(int num_frames);
@@ -44,9 +61,13 @@ int len_free_frames();
 int get_free_frame();
 /* Page Functions */
 int create_page_table(struct pte *page_table);
+int clone_page_table(struct pte *pt1, struct pte *pt2);
 int reset_page_table(struct pte *page_table);
 int reset_page_table_limited(struct pte *page_table);
 int free_page_table(struct pte *page_table);
+/* PCB functions */
+int create_pcb(struct pcb *pcb_p);
+int free_pcb(struct pcb *pcb_p);
 
 /* Debug functions*/
 void debug_page_tables(struct pte *table, int verbosity);

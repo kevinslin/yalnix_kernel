@@ -17,6 +17,9 @@ extern int LoadProgram(char *name, char **args, ExceptionStackFrame *frame);
 static void *interrupt_vector_table[TRAP_VECTOR_SIZE];
 bool VM_ENABLED;
 
+struct pte page_table1[NUM_PAGES];
+struct pte *page_table1_p = page_table1;
+
 /* Kernel Functions */
 int SetKernelBrk(void *addr) {
   printf("in set kernel brk\n");

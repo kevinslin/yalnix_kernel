@@ -47,6 +47,10 @@ debug_frames(int verbosity) {
 }
 
 
+/* Misc Functions */
+int get_next_pid() {
+  return ++i;
+}
 
 /* Frame Functions */
 /*
@@ -108,7 +112,6 @@ int get_free_frame() {
  * Create a page table with no valid page tables
  */
 int create_page_table(struct pte *page_table) {
-  int i;
   page_table = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
   if (page_table == NULL) {
     return -1;
@@ -116,7 +119,19 @@ int create_page_table(struct pte *page_table) {
   return reset_page_table(page_table);
 }
 
+int clone_page_table(struct pte *pt1, struct pte *pt2) {
+  int i;
+  for (i=0; i<NUM_PAGES; i++) {
+    (pt2 + i)->pfn = (pt1 +i)->pfn;
+    (pt2 + i)->valid = (pt1 +i)->valid;
+    (pt2 + i)->uprot = (pt1 +i)->uprot;
+    (pt2 + i)->kprot = (pt1 +i)->kprot;
+  }
+  return 1;
+}
+
 int reset_page_table(struct pte *page_table) {
+  int i;
   for (i=0; i<NUM_PAGES; i++) {
     (page_table + i)->pfn = PFN_INVALID;
     (page_table + i)->valid = PTE_INVALID;
@@ -131,6 +146,7 @@ int reset_page_table(struct pte *page_table) {
  * Set all frames pointed to by page table to free
  */
 int reset_page_table_limited(struct pte *page_table) {
+  int i;
   for (i=0; i<get_page_index(KERNEL_STACK_BASE); i++) {
     (page_table + i)->pfn = PFN_INVALID;
     (page_table + i)->valid = PTE_INVALID;
@@ -148,3 +164,24 @@ int free_page_table(struct pte *page_table) {
   return -1;
 }
 
+/* PCB Functions */
+int create_pcb(struct pcb *pcb_p, struct pcb *parent, struct pte page_table) {
+  pcb_p = (struct pcb *)malloc(sizeof(struct pcb));
+  if (pcb_p == NULL) {
+    return -1;
+  }
+  pcb_p->pid = get_next_pid();
+  pcb_p->time_current = 0;
+  pcb_p->time_delay = 0;
+  pcb_p->status = 0;
+  pcb_p->page_table = page_table;
+  pcb_p->parent = parent;
+  pcb_p->frame = NULL;
+  pcb_p->pc_next = NULL;
+  pcb_p->sp_next = NULL;
+  pcb_p->psr_next = -1;
+  return 1;
+}
+
+int free_pcb(struct pcb *pcb_p) {
+}

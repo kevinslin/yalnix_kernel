@@ -1,3 +1,8 @@
+/*
+ * Yalnix interrupt functions
+ *
+ */
+
 #ifndef _yalnix_interrupts_h
 #define _yalnix_interrupts_h
 
