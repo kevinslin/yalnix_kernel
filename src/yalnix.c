@@ -212,7 +212,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
     /*printf("error with initswitching \n");*/
     /*exit(1);*/
   /*}*/
-  if(LoadProgram("idle", cmd_args, frame) != 0) {
+  if(LoadProgram("init", cmd_args, frame) != 0) {
     //error error error
   }
   idle_pcb->pc_next = frame->pc;
