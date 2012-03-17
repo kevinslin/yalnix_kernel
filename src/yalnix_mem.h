@@ -32,7 +32,7 @@ struct pcb{
   int status; // delayed, sleeping...
   void *brk; //heap limit
   void *stack_limit;
-  SavedContext context;
+  SavedContext *context;
   struct pte page_table[PAGE_TABLE_LEN];
   struct pcb *parent;
   struct pcb *children_active[5];
@@ -51,7 +51,7 @@ int NUM_FRAMES; /* number of frames, obtained by dividing pmem_size / pagesize *
 page_frames *frames_p;
 void *KERNEL_HEAP_LIMIT;
 /* Page table stuff */
-struct pte *page_table0_p;
+struct pte *page_table0_p; // the current pagetable0
 
 /* Frame Functions */
 int initialize_frames(int num_frames);

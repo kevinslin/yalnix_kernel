@@ -305,8 +305,9 @@ void start_idle(ExceptionStackFrame *frame) {
   fflush(stdout);
 
   // Initiate context switch
-  SavedContext *ctx;
-  ctx->id = get_next_pid();
+  dprintf("creating initial saved_context", 0);
+  SavedContext *ctx; //nothing in ctx in beginiing
+  ctx = (SavedContext *)malloc(sizeof(SavedContext));
   dprintf("about to contextswitch...", 0);
   fflush(stdout);
   ContextSwitch(initswitchfunction, ctx, idle_pcb, NULL);
