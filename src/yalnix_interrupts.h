@@ -24,5 +24,6 @@ void interrupt_tty_receive(ExceptionStackFrame *frame);
 void interrupt_tty_transmit(ExceptionStackFrame *frame);
 void interrupt_disk(ExceptionStackFrame *frame);
 
+void kernel_error(char *msg, ExceptionStackFrame *frame);
 
 #endif /* end of _yalnix_interrupts_h */

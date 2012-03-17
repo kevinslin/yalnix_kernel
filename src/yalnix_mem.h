@@ -75,6 +75,7 @@ int free_pcb(struct pcb *pcb_p);
 void debug_page_tables(struct pte *table, int verbosity);
 void debug_stack_frame(ExceptionStackFrame *frame);
 void debug_frames();
+void debug_pcb(struct pcb *pcb_p);
 //void debug_kernel();
 
 /* Misc Functions */

@@ -51,6 +51,32 @@ debug_frames(int verbosity) {
 	printf("=============\n");
 }
 
+void debug_pcb(struct pcb *pcb_p) {
+  printf("dumping pcb...\n");
+  printf("pid: %i\n", pcb_p->pid);
+  printf("brk index: %i\n", pcb_p->brk_index);
+  printf("stack limit index: %i\n", pcb_p->stack_limit_index);
+  printf("name: %s\n", pcb_p->name);
+/*struct pcb{*/
+  /*unsigned int pid;*/
+  /*unsigned int time_current;*/
+  /*unsigned int time_delay; // time to wait before process is restarted*/
+  /*int status; // delayed, sleeping...*/
+  /*void *brk; //heap limit DEPRECIATE?*/
+  /*int brk_index; //heap limit*/
+  /*void *stack_limit; // DEPRECIATE?*/
+  /*int stack_limit_index;*/
+  /*SavedContext *context;*/
+  /*struct pte page_table[PAGE_TABLE_LEN];*/
+  /*struct pcb *parent;*/
+  /*struct pcb *children_active[5];*/
+  /*struct pcb *children_wait[5];*/
+  /*ExceptionStackFrame *frame;*/
+  /*void *pc_next;*/
+  /*void *sp_next;*/
+  /*unsigned long psr_next;*/
+  /*char *name; //for debugging purposes*/
+}
 
 /* Misc Functions */
 int get_next_pid() {

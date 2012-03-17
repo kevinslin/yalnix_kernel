@@ -221,6 +221,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   init_pcb = Create_pcb(NULL);
   printf("[debug]: created pcb...\n");
+  dprintf("created pcb", 0);
   pcb_current = init_pcb;
   pcb_current->pc_next = frame->pc;
   pcb_current->sp_next = frame->sp;
@@ -247,6 +248,8 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   if(LoadProgram("init", cmd_args, frame, &pcb_current) != 0) {
     //error error error
   }
+
+  debug_pcb(pcb_current);
   printf("finished loading program...\n");
   fflush(stdout);
 
@@ -318,5 +321,5 @@ void start_idle(ExceptionStackFrame *frame) {
   ContextSwitch(initswitchfunction, ctx, idle_pcb, NULL);
 
   dprintf("about to load program...", 0);
-  LoadProgram("idle", args_copy, frame);
+  LoadProgram("idle", args_copy, frame, &pcb_current);
 }

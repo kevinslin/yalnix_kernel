@@ -57,28 +57,28 @@ void interrupt_clock(ExceptionStackFrame *frame){
    */
 }
 void interrupt_illegal(ExceptionStackFrame *frame){
-  kernel_error("illegal instruction");
+  kernel_error("illegal instruction", frame);
 }
 void interrupt_memory(ExceptionStackFrame *frame){
   dprintf("in interrupt_memory", 0);
 }
 void interrupt_math(ExceptionStackFrame *frame){
-  kernel_error("illegal math operation");
+  kernel_error("illegal math operation", frame);
 }
 void interrupt_tty_receive(ExceptionStackFrame *frame){
 }
 void interrupt_tty_transmit(ExceptionStackFrame *frame){
 }
 void interrupt_disk(ExceptionStackFrame *frame){
-  kernel_error("illegal disk access");
+  kernel_error("illegal disk access", frame);
 }
 
 /*
  * Dump data on yalnix system error
  */
-void kernel_error(char *msg) {
+void kernel_error(char *msg, ExceptionStackFrame *frame) {
   printf("%s \n", msg);
-  printf("pid: %i\n", GetPid());
+  printf("pid: %i\n", pcb_current->pid);
   printf("error code: %i\n", frame->code);
   Exit(ERROR);
 }
