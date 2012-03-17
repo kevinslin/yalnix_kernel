@@ -91,8 +91,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   int num_frames;
   int kernel_heap_limit_index;
   int kernel_text_limit_index;
-  int kernel_stack_base_index;
-  int kernel_stack_limit_index;
 
   /* TMP */
   args_copy = cmd_args; //TODO: hack!
@@ -162,10 +160,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   kernel_heap_limit_index = get_page_index(KERNEL_HEAP_LIMIT);
   kernel_text_limit_index = get_page_index(&_etext);
-  kernel_stack_limit_index = get_page_index(KERNEL_STACK_LIMIT);
-  kernel_stack_base_index = get_page_index(KERNEL_STACK_BASE);
-  printf("orig_brk: %p\n", orig_brk);
-  printf("text: %p\n", &_etext);
 
   /* Map physical pages to corresponding virtual addresses */
   // TABLE1_OFFSET neccessary to account for VMEM_1_BASE higher starting address
@@ -182,13 +176,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
     set_frame(i, FRAME_NOT_FREE);
   }
   // Page Table 0
-  for(i=kernel_stack_base_index; i <= kernel_stack_limit_index; i++) {
-    (page_table0_p + i)->valid = PTE_VALID;
-    (page_table0_p + i)->pfn = i;
-    (page_table0_p + i)->kprot = (PROT_READ | PROT_WRITE);
-    (page_table0_p + i)->uprot = PROT_NONE;
-    set_frame(i, FRAME_NOT_FREE);
-  }
+  page_table0_p = init_page_table0(page_table0_p);
 
   /* Debug region values*/
   printf(DIVIDER);
@@ -273,7 +261,7 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
 
-  // get a copy of the current table0 table
+  // get a copy of the current table0 table TODO
   /*dprintf("cloning region0...", 0);*/
   /*page = clone_page_table(page_table0_p);*/
   /*page_table0_p = page;*/
@@ -312,8 +300,8 @@ void start_idle(ExceptionStackFrame *frame) {
   if (NULL == page_table) {
     unix_error("problem creating page table");
   }
+  page_table = init_page_table0(page_table);
   pcb_current->page_table_p = page_table;
-
 
   dprintf("created pcb...", 0);
   debug_page_table(page_table0_p, 0);
@@ -331,4 +319,5 @@ void start_idle(ExceptionStackFrame *frame) {
 
   dprintf("about to load program...", 0);
   LoadProgram("idle", args_copy, frame, &pcb_current);
+  dprintf("finished loading program...", 0);
 }

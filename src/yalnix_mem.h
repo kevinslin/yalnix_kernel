@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include <comp421/hardware.h>
+#include "queue.h"
 #include "simpleutils.h"
 
 #define PTE_VALID 1
@@ -47,12 +48,18 @@ struct pcb{
   char *name; //for debugging purposes
 };
 
+/* Queues */
+queue *active;
+queue *waiting;
+
 /* Pcb stuff */
 struct pcb *pcb_current;
+
 /* Frame Stuff */
 int NUM_FRAMES; /* number of frames, obtained by dividing pmem_size / pagesize */
 page_frames *frames_p;
 void *KERNEL_HEAP_LIMIT;
+
 /* Page table stuff */
 struct pte *page_table0_p; // the current pagetable0
 
@@ -61,12 +68,15 @@ int initialize_frames(int num_frames);
 int set_frame(int index, int status);
 int len_free_frames();
 int get_free_frame();
+
 /* Page Functions */
 struct pte *create_page_table();
+struct pte *init_page_table0(struct pte *page_table);
 struct pte *clone_page_table(struct pte *src);
 struct pte *reset_page_table(struct pte *page_table);
 struct pte *reset_page_table_limited(struct pte *page_table);
 int free_page_table(struct pte *page_table);
+
 /* PCB functions */
 struct pcb *Create_pcb(struct pcb *parent);
 struct pcb *create_pcb(struct pcb *parent);

@@ -91,7 +91,7 @@ void Exit(int status) {
 	ExceptionStackFrame *frame = pcb_current->frame;
 	free_pcb(pcb_current); //FIXME: implement
 	start_idle(frame);
-	exit(1); //FIXME: right?
+	//exit(1); //FIXME: right?
 }
 
 int Delay(int clock_ticks) {

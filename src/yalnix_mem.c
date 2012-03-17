@@ -153,6 +153,22 @@ struct pte *create_page_table() {
   }
   return page_table;
 }
+/*
+ * Set region 0 kernel stack to valid
+ */
+struct pte *init_page_table0(struct pte *page_table) {
+  int i;
+  int limit = get_page_index(KERNEL_STACK_LIMIT);
+  int base = get_page_index(KERNEL_STACK_BASE);
+  for(i=base; i<=limit; i++) {
+    (page_table + i)->valid = PTE_VALID;
+    (page_table + i)->pfn = i;
+    (page_table + i)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table + i)->uprot = PROT_NONE;
+    set_frame(i, FRAME_NOT_FREE);
+  }
+  return page_table;
+}
 
 /*
  * Clone pt2 into pt1
