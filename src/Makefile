@@ -39,8 +39,8 @@ ALL = yalnix idle init test1 test2 test3
 #	the corresponding source files that make up your kernel.
 #
 #
-KERNEL_OBJS = queue.o simpleutils.o yalnix_mem.o yalnix_interrupts.o load.o yalnix.o
-KERNEL_SRCS = queue.c simpleutils.c yalnix_interrupts.c yalnix_mem.c load.c  yalnix.c
+KERNEL_OBJS = yalnix_kernel.o queue.o simpleutils.o yalnix_mem.o yalnix_interrupts.o load.o yalnix.o
+KERNEL_SRCS = yalnix_kernel.c queue.c simpleutils.c yalnix_interrupts.c yalnix_mem.c load.c  yalnix.c
 
 #
 #	You should not have to modify anything else in this Makefile

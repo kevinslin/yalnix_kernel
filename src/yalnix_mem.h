@@ -39,8 +39,8 @@ struct pcb{
   struct pte page_table[PAGE_TABLE_LEN]; //depreciate?
   struct pte *page_table_p;
   struct pcb *parent;
-  struct pcb *children_active[5];
-  struct pcb *children_wait[5];
+  queue *children_active;
+  queue *children_wait;
   ExceptionStackFrame *frame;
   void *pc_next;
   void *sp_next;
@@ -49,8 +49,9 @@ struct pcb{
 };
 
 /* Queues */
-queue *active;
-queue *waiting;
+queue *p_ready;
+queue *p_waiting;
+queue *p_delay;
 
 /* Pcb stuff */
 struct pcb *pcb_current;
@@ -89,7 +90,11 @@ void debug_frames();
 void debug_pcb(struct pcb *pcb_p);
 //void debug_kernel();
 
+/* Context switch funcs */
+SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 );
+
 /* Misc Functions */
 int get_next_pid();
+
 
 #endif	/* end _yalnix_mem_h */

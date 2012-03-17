@@ -61,7 +61,42 @@ void interrupt_illegal(ExceptionStackFrame *frame){
 }
 void interrupt_memory(ExceptionStackFrame *frame){
   dprintf("in interrupt_memory", 0);
+	int f;
+	int i;
+  struct pte *page_table;
+
+	unsigned int addr = ((long)frame->addr);
+	int addr_page = get_page_index(addr);
+  page_table = pcb_current->page_table;
+
+	if(addr_page > pcb_current->brk_index && addr_page<pcb_current->stack_limit_index){
+		if(addr_page - pcb_current->brk_index <= 1){
+			printf("Stack overflow, address 0x%061x \n", addr);
+			Exit(ERROR);
+		}
+		if(pcb_current->stack_limit_index - addr_page > len_free_frames()){
+			printf("Not enough physical memory. address 0x%061x \n", addr);
+			Exit(ERROR);
+		}
+		int k = 0;
+		for(i = 0; i<pcb_current->stack_limit_index - addr_page; i++){
+		  f = get_free_frame();
+          (page_table + pcb_current->stack_limit_index - i-1)->valid = PTE_VALID;
+          (page_table + pcb_current->stack_limit_index - i-1)->pfn = f;
+          (page_table + pcb_current->stack_limit_index - i-1)->uprot = (PROT_READ | PROT_WRITE);
+          (page_table + pcb_current->stack_limit_index - i-1)->kprot = (PROT_READ | PROT_WRITE);
+		  //Not sure about the actual index
+		  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
+		  k++;
+		}
+		pcb_current->stack_limit_index = pcb_current->stack_limit_index - k - 1;
+	}
+	else{
+		printf("Process %d: NOOBS ACCESSING INVALID MEMORY AT 0x%061x WITH CODE %d\n", pcb_current->pid, addr, frame->code);
+		Exit(ERROR);
+	}
 }
+
 void interrupt_math(ExceptionStackFrame *frame){
   kernel_error("illegal math operation", frame);
 }
@@ -81,24 +116,4 @@ void kernel_error(char *msg, ExceptionStackFrame *frame) {
   printf("pid: %i\n", pcb_current->pid);
   printf("error code: %i\n", frame->code);
   Exit(ERROR);
-}
-
-/*
- * Exit current process
- */
-void Exit(int status) {
-	dprintf("in exit...", 0);
-	ExceptionStackFrame *frame = pcb_current->frame;
-	free_pcb(pcb_current); //FIXME: implement
-	start_idle(frame);
-	//exit(1); //FIXME: right?
-}
-
-int Delay(int clock_ticks) {
-	printf("[info]:clock_ticks: %i\n", clock_ticks);
-  if (0 == clock_ticks) return 0;
-  if (0 > clock_ticks) return ERROR;
-  pcb_current->time_delay = clock_ticks;
-  //TODO: start a new process
-	return 1;
 }

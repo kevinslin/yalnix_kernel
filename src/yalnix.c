@@ -95,8 +95,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   /* TMP */
   args_copy = cmd_args; //TODO: hack!
 
-
-
   /* Get memory size*/
   num_frames = pmem_size / PAGESIZE;
   assert(num_frames > 0); // silly...
@@ -107,6 +105,9 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   initialize_frames(num_frames);
   page_table0_p = create_page_table();
   assert(page_table0_p != NULL);
+  p_ready = create_queue();
+  p_waiting = create_queue();
+  p_delay = create_queue();
 
   /* Initialize interrupt vector table */
   for (i=0; i < TRAP_VECTOR_SIZE; i++) {
@@ -277,17 +278,6 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   return ctxp;
 }
 
-/*
- * Context switch from fork
- */
-SavedContext* forkswitchfunction(SavedContext *ctxp, void *p1, void *p2 ){
-  struct pcb *parent = p1;
-  struct pcb *child = p2;
-  struct pte *parent_table = (parent->page_table);
-  struct pte *child_table = (child->page_table);
-  parent_table = clone_page_table(child_table);
-  return ctxp;
-}
 
 void start_idle(ExceptionStackFrame *frame) {
   dprintf("in start_idle...", 0);

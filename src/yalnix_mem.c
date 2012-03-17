@@ -222,6 +222,10 @@ struct pcb *create_pcb(struct pcb *parent) {
   if (pcb_p == NULL) {
     return NULL;
   }
+  if (parent != NULL) {
+    //TODO: make sure pcb_p gets modifications
+    enqueue(parent->children_active, pcb_p);
+  }
   pcb_p->pid = get_next_pid();
   pcb_p->time_current = 0;
   pcb_p->time_delay = 0;
@@ -248,3 +252,34 @@ struct pcb *Create_pcb(struct pcb *parent) {
   }
   return a_pcb;
 }
+
+/* Switching functions */
+
+/*
+ * Normal context switch
+ */
+
+/*SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {*/
+  /*struct pcb *p1 = (struct pcb *)p1;*/
+  /*struct pcb *p2 = (struct pcb *)p2;*/
+  /*// Set pcb to new process*/
+  /*pcb_current = p2;*/
+  /*// Put p1 into queue*/
+  /*enqueue(p_waiting, (void *)p1);*/
+  /*// switch region0 table*/
+  /*WriteRegister( REG_PTR0, (RCS421RegVal) p2->page_table_p);*/
+/*}*/
+
+
+/*
+ * Context switch from fork
+ */
+SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
+  struct pcb *parent = p1;
+  struct pcb *child = p2;
+  struct pte *parent_table = (parent->page_table);
+  struct pte *child_table = (child->page_table);
+  child_table = clone_page_table(parent_table);
+  return ctxp;
+}
+
