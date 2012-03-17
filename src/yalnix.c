@@ -227,6 +227,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   pcb_current->sp_next = frame->sp;
   pcb_current->psr_next = frame->psr;
   pcb_current->frame = frame;
+  pcb_current->page_table = page_table0_p;
 
   /* Enable virtual memory */
   dprintf("enabling virtual memory...", 1);
@@ -235,18 +236,18 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   dprintf("enabled virtual memory...", 1);
 
   // Clone page0 into current context
-  struct pte *page = init_pcb->page_table;
-  page = clone_page_table(page_table0_p);
+  /*struct pte *page = init_pcb->page_table;*/
+  /*page = clone_page_table(page_table0_p);*/
   /*page_table0_p = page;*/
+  /*printf("writing new ptr0...\n");*/
+  /*WriteRegister( REG_PTR0, (RCS421RegVal) page);*/
 
-  printf("writing new ptr0...\n");
-  WriteRegister( REG_PTR0, (RCS421RegVal) page);
   printf("page 508: %u\n", (page + 508)->valid);
-  page_table0_p = page; //initial program has loaded, the current table0 = page
+  /*page_table0_p = page; //initial program has loaded, the current table0 = page*/
 
-  printf("about to load program...\n");
+  dprintf("about to load program...", 0);
   if(LoadProgram("init", cmd_args, frame, &pcb_current) != 0) {
-    //error error error
+    unix_error("error loading program!");
   }
 
   debug_pcb(pcb_current);
