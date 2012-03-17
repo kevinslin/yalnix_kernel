@@ -21,6 +21,7 @@ main()
     printf("this %d is %d a %d test %d\n", a, b, c, d);
     printf("the pid is: %i\n", GetPid());
     foo = (int *)malloc(sizeof(int));
+    Exit(3);
 
     for (;;) {
     }

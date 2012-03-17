@@ -44,6 +44,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   int data_bss_npg;
   int stack_npg;
 	int j,k;
+  struct pte *page_table;
 	printf("[debug]: in loadprogram...\n");
 
   TracePrintf(0, "LoadProgram '%s', args %p\n", name, args);
@@ -173,7 +174,10 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
       >>>> memory page indicated by that PTE's pfn field.  Set all
       >>>> of these PTEs to be no longer valid.
 			*/
-			page_table0_p = reset_page_table_limited(page_table0_p);
+      page_table = (*pcb_p)->page_table_p;
+      /*debug_page_table(page_table, 0);*/
+      /*debug_page_table(page_table0_p, 0);*/
+			page_table = reset_page_table_limited(page_table);
 
 
       /*
@@ -197,11 +201,10 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
 			*/
 			k = MEM_INVALID_PAGES;
 			for (j = 0; j < text_npg; j++) {
-				(page_table0_p + k)->valid = PTE_VALID;
-				(page_table0_p + k)->pfn = get_free_frame();
-				//assert((page_table0_p + k)->pfn > 0)
-				(page_table0_p + k)->kprot = (PROT_READ | PROT_WRITE);
-				(page_table0_p + k)->uprot = (PROT_READ | PROT_EXEC);
+				(page_table + k)->valid = PTE_VALID;
+				(page_table + k)->pfn = get_free_frame();
+				(page_table + k)->kprot = (PROT_READ | PROT_WRITE);
+				(page_table + k)->uprot = (PROT_READ | PROT_EXEC);
 				k++;
 			}
 
@@ -216,12 +219,12 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
 			*/
 
 			for (j = 0; j < data_bss_npg; j++) {
-				(page_table0_p + k)->valid = PTE_VALID;
-				(page_table0_p + k)->pfn = get_free_frame();
+				(page_table + k)->valid = PTE_VALID;
+				(page_table + k)->pfn = get_free_frame();
 				//STATMENT: I don't feel good about this
-				//assert((page_table0_p + k)->pfn > 0)
-				(page_table0_p + k)->kprot = (PROT_READ | PROT_WRITE);
-				(page_table0_p + k)->uprot = (PROT_READ | PROT_WRITE);
+				//assert((page_table + k)->pfn > 0)
+				(page_table + k)->kprot = (PROT_READ | PROT_WRITE);
+				(page_table + k)->uprot = (PROT_READ | PROT_WRITE);
 				k++;
 			}
 
@@ -244,10 +247,10 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
 			// k should be equivalent to USER_STACK_BASE
 			k = get_page_index(USER_STACK_LIMIT) - stack_npg;
 			for (j = 0; j < stack_npg ; j++) {
-				(page_table0_p + k)->valid = PTE_VALID;
-				(page_table0_p + k)->pfn = get_free_frame();
-				(page_table0_p + k)->kprot = (PROT_READ | PROT_WRITE);
-				(page_table0_p + k)->uprot = (PROT_READ | PROT_WRITE);
+				(page_table + k)->valid = PTE_VALID;
+				(page_table + k)->pfn = get_free_frame();
+				(page_table + k)->kprot = (PROT_READ | PROT_WRITE);
+				(page_table + k)->uprot = (PROT_READ | PROT_WRITE);
 				k++;
 			}
       (*pcb_p)->stack_limit_index = k;
@@ -284,7 +287,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
 		*/
 			k = MEM_INVALID_PAGES;
 			for (j = 0; j < text_npg; j++) {
-				(page_table0_p + k)->kprot = (PROT_READ | PROT_EXEC);
+				(page_table + k)->kprot = (PROT_READ | PROT_EXEC);
 				k++;
 			}
 

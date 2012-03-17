@@ -5,7 +5,7 @@ int PID = 0;
 
 /* Debug functions */
 void
-debug_page_tables(struct pte *table, int verbosity) {
+debug_page_table(struct pte *table, int verbosity) {
   int i;
   if (verbosity) {
     for (i=0; i<PAGE_TABLE_LEN; i++) {

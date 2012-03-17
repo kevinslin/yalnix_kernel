@@ -35,7 +35,8 @@ struct pcb{
   void *stack_limit; // DEPRECIATE?
   int stack_limit_index;
   SavedContext *context;
-  struct pte page_table[PAGE_TABLE_LEN];
+  struct pte page_table[PAGE_TABLE_LEN]; //depreciate?
+  struct pte *page_table_p;
   struct pcb *parent;
   struct pcb *children_active[5];
   struct pcb *children_wait[5];
@@ -72,7 +73,7 @@ struct pcb *create_pcb(struct pcb *parent);
 int free_pcb(struct pcb *pcb_p);
 
 /* Debug functions*/
-void debug_page_tables(struct pte *table, int verbosity);
+void debug_page_table(struct pte *table, int verbosity);
 void debug_stack_frame(ExceptionStackFrame *frame);
 void debug_frames();
 void debug_pcb(struct pcb *pcb_p);

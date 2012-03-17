@@ -13,6 +13,6 @@ dprintf(char *msg, int level) {
 
 
 void unix_error(char *msg) {
-    fprintf(stderr, "%s\n", msg);
+    fprintf(stderr, "%s: %s\n", msg, strerror(errno));
     exit(-1);
 }
