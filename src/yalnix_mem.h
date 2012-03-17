@@ -30,8 +30,10 @@ struct pcb{
   unsigned int time_current;
   unsigned int time_delay; // time to wait before process is restarted
   int status; // delayed, sleeping...
-  void *brk; //heap limit
-  void *stack_limit;
+  void *brk; //heap limit DEPRECIATE?
+  int brk_index; //heap limit
+  void *stack_limit; // DEPRECIATE?
+  int stack_limit_index;
   SavedContext *context;
   struct pte page_table[PAGE_TABLE_LEN];
   struct pcb *parent;

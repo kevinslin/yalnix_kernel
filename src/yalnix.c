@@ -12,7 +12,7 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2);
 SavedContext* forkswitchfunction(SavedContext *ctxp, void *p1, void *p2 );
 
 /* Extern */
-extern int LoadProgram(char *name, char **args, ExceptionStackFrame *frame);
+extern int LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pcb_p);
 
 /* Globals */
 void *interrupt_vector_table[TRAP_VECTOR_SIZE];
@@ -55,8 +55,14 @@ int SetKernelBrk(void *addr) {
         printf("[debug]:finished allocating memory...\n");
         return 0;
       } else {
-        // not enough free memory
-        return -1;
+        for (i = 0; i < pages_needed; i++) {
+          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->valid = PTE_INVALID;
+          set_frame((page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->pfn, FRAME_FREE);
+          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->pfn = 0;
+          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->uprot = PROT_NONE;
+          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->kprot = PROT_NONE;
+        }
+        return ERROR;
       }
     }
     //get the current page which should be the kernerlbrk
@@ -105,17 +111,17 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   assert(page_table0_p != NULL);
 
   /* Initialize interrupt vector table */
+  for (i=0; i < TRAP_VECTOR_SIZE; i++) {
+    interrupt_vector_table[i] = NULL;
+  }
   interrupt_vector_table[TRAP_KERNEL] = &interrupt_kernel;
   interrupt_vector_table[TRAP_CLOCK] = &interrupt_clock;
   interrupt_vector_table[TRAP_ILLEGAL] = &interrupt_illegal;
   interrupt_vector_table[TRAP_MEMORY] = &interrupt_memory;
-  interrupt_vector_table[TRAP_MATH] = &interrupt_kernel;
+  interrupt_vector_table[TRAP_MATH] = &interrupt_math;
   interrupt_vector_table[TRAP_TTY_RECEIVE] = &interrupt_kernel;
   interrupt_vector_table[TRAP_TTY_TRANSMIT] = &interrupt_kernel;
   interrupt_vector_table[TRAP_DISK] = &interrupt_kernel;
-  for (i=8; i < TRAP_VECTOR_SIZE; i++) {
-    interrupt_vector_table[i] = NULL;
-  }
 
   /* Point REG_VECTOR_BASE at interupt vector table */
   WriteRegister( REG_VECTOR_BASE, (RCS421RegVal) &interrupt_vector_table);
@@ -188,7 +194,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   printf(DIVIDER);
   printf("pmem: %u\n", pmem_size);
   printf("free frames: %i\n", len_free_frames());
-  debug_frames(0);
+  debug_frames();
   printf(DIVIDER);
   debug_page_tables(page_table0_p, 1);
   debug_page_tables(page_table1_p, 1);
@@ -238,7 +244,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   page_table0_p = page; //initial program has loaded, the current table0 = page
 
   printf("about to load program...\n");
-  if(LoadProgram("init", cmd_args, frame) != 0) {
+  if(LoadProgram("init", cmd_args, frame, &pcb_current) != 0) {
     //error error error
   }
   printf("finished loading program...\n");
@@ -266,11 +272,10 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   // get a copy of the current table0 table
   dprintf("cloning region0...", 0);
   page = clone_page_table(page_table0_p);
-  /*unsigned int pfn:20;*/
-  /*pfn = (page_table0_p + get_page_index(page_table0_p))->pfn;*/
+  page_table0_p = page;
   printf("[debug]: page 508: %u\n", (page_table0_p + 508)->valid);
   dprintf("updating reg_ptr0...", 0);
-  WriteRegister( REG_PTR0, (RCS421RegVal) page);
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
 
   if (VM_ENABLED) {
     dprintf("flusing region0...", 0);
@@ -299,9 +304,9 @@ void start_idle(ExceptionStackFrame *frame) {
   pcb_current = idle_pcb;
   idle_pcb->frame = frame;
   dprintf("created pcb...", 0);
-  debug_page_tables(page_table0_p, 1);
+  debug_page_tables(page_table0_p, 0);
   printf(DIVIDER);
-  debug_page_tables(page_table1_p, 1);
+  debug_page_tables(page_table1_p, 0);
   fflush(stdout);
 
   // Initiate context switch

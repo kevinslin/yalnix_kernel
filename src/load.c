@@ -27,7 +27,7 @@
  *  in this case.
  */
 int
-LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
+LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pcb_p)
 {
   int fd;
   int status;
@@ -225,6 +225,9 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
 				k++;
 			}
 
+      // Update heap limit
+      (*pcb_p)->brk_index = k;
+
 
       /* And finally the user stack pages */
 			/*
@@ -247,6 +250,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame)
 				(page_table0_p + k)->uprot = (PROT_READ | PROT_WRITE);
 				k++;
 			}
+      (*pcb_p)->stack_limit_index = k;
 
 
       /*
