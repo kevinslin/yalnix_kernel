@@ -206,15 +206,15 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   printf("page table0: %p\n", page_table0_p);
   printf("page table1: %p\n", page_table1_p);
 
-
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   WriteRegister( REG_PTR1, (RCS421RegVal) page_table1_p);
 
 
+  /* Create pcb for init program */
   struct pcb *init_pcb;
 
   init_pcb = Create_pcb(NULL);
-  printf("created pcb...\n");
+  printf("[debug]: created pcb...\n");
   pcb_current = init_pcb;
   pcb_current->pc_next = frame->pc;
   pcb_current->sp_next = frame->sp;
@@ -233,7 +233,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   printf("enabled virtual memory...\n");
 
   printf("writing new ptr0...\n");
-  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
+  WriteRegister( REG_PTR0, (RCS421RegVal) page);
   printf("page 508: %u\n", (page + 508)->valid);
 
   printf("about to load program...\n");
@@ -247,7 +247,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
     WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   }
 
-  printf("done!");
+  printf("done starting kernel!\n");
 }
 
 /* Context switches */
@@ -257,6 +257,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page = (p->page_table);
+
   printf("in initswitchfunction...\n");
   fflush(stdout);
 
@@ -266,10 +267,10 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   /*unsigned int pfn:20;*/
   /*pfn = (page_table0_p + get_page_index(page_table0_p))->pfn;*/
 
-  //WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   printf("[debug]: page 508: %u\n", (page_table0_p + 508)->valid);
   if (VM_ENABLED) {
-    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+    /*WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);*/
   }
 
   return ctxp;
@@ -294,7 +295,8 @@ void start_idle(ExceptionStackFrame *frame) {
   idle_pcb->frame = frame;
 
   // Initiate context switch
-  SavedContext *ctx = &(pcb_current->context);
+  SavedContext *ctx;
+  ctx->id = get_next_pid();
   ContextSwitch(initswitchfunction, ctx, idle_pcb, NULL);
   printf("[debug]: finished context switching...\n");
   LoadProgram("idle", args_copy, frame);

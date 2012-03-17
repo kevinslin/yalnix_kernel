@@ -115,6 +115,7 @@ int get_free_frame() {
  * Create a page table with no valid page tables
  */
 struct pte *create_page_table() {
+  /*struct pte page_table[NUM_PAGES];*/
   struct pte *page_table = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
   if (page_table == NULL) {
     return NULL;

@@ -20,6 +20,7 @@
 #define MAX_CHILDREN 5
 
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
+#define get_page_mem(page_index) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
 
 typedef struct {
   int free;
@@ -72,6 +73,7 @@ int free_pcb(struct pcb *pcb_p);
 void debug_page_tables(struct pte *table, int verbosity);
 void debug_stack_frame(ExceptionStackFrame *frame);
 void debug_frames();
+//void debug_kernel();
 
 /* Misc Functions */
 int get_next_pid();

@@ -14,6 +14,7 @@
 
 
 void dprintf(char *msg, int level);
+void unix_error(char *msg);
 
 
 #endif /* end _simpleutils_h */

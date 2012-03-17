@@ -16,20 +16,37 @@ interrupt_kernel(ExceptionStackFrame *frame) {
   printf("got a kernel interrupt\n");
 	switch(frame->code) {
 		case YALNIX_FORK:
+			printf("syscall fork...\n");
+			break;
+		case YALNIX_EXEC:
+			printf("syscall exec...\n");
 			break;
 		case YALNIX_EXIT:
 			printf("sys call exit\n");
 			//TODO: get actual status
 			Exit(0);
 			break;
+		case YALNIX_WAIT:
+			printf("syscall wait...\n");
+			break;
+		case YALNIX_GETPID:
+			printf("syscall getting pid...\n");
+			break;
+		case YALNIX_BRK:
+			printf("syscall getting brk...\n");
+			break;
+		case YALNIX_DELAY:
+			printf("syscall delay... \n");
+			Delay();
+			break;
 		default:
 			printf("got unknown system call!\n");
 	}
-
   //debug_stack_frame(frame);
 }
 
 void interrupt_clock(ExceptionStackFrame *frame){
+	printf("got clock interrupt...\n");
 }
 void interrupt_illegal(ExceptionStackFrame *frame){
 }
@@ -52,5 +69,9 @@ void Exit(int status) {
 	//free_pcb(pcb_current);
 	printf("current process exiting..\n");
 	start_idle(frame);
+	exit(1); //FIXME: right?
 }
 
+int Delay(int clock_ticks) {
+	printf("[debug]:clock_ticks: %i\n", clock_ticks);
+}
