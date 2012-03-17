@@ -6,6 +6,9 @@
 #define _simpleutils_h
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include <comp421/hardware.h>
 
 #define DEBUG_LEVEL 0

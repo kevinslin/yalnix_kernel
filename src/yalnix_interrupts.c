@@ -37,7 +37,7 @@ interrupt_kernel(ExceptionStackFrame *frame) {
 			break;
 		case YALNIX_DELAY:
 			printf("syscall delay... \n");
-			Delay();
+			Delay(4);
 			break;
 		default:
 			printf("got unknown system call!\n");
@@ -66,12 +66,17 @@ void interrupt_disk(ExceptionStackFrame *frame){
  */
 void Exit(int status) {
 	ExceptionStackFrame *frame = pcb_current->frame;
-	//free_pcb(pcb_current);
+	//free_pcb(pcb_current); //FIXME: implement
 	printf("current process exiting..\n");
 	start_idle(frame);
 	exit(1); //FIXME: right?
 }
 
 int Delay(int clock_ticks) {
-	printf("[debug]:clock_ticks: %i\n", clock_ticks);
+	printf("[info]:clock_ticks: %i\n", clock_ticks);
+	//FIXME:implement clock ticks
+	/*while (clock_ticks--) {*/
+		/*Pause();*/
+	/*}*/
+	return 1;
 }

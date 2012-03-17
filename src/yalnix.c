@@ -19,7 +19,7 @@ void *interrupt_vector_table[TRAP_VECTOR_SIZE];
 bool VM_ENABLED;
 char **args_copy;
 
-struct pte page_table1[NUM_PAGES];
+struct pte page_table1[PAGE_TABLE_LEN];
 struct pte *page_table1_p = page_table1;
 
 /* Kernel Functions */
@@ -121,7 +121,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   WriteRegister( REG_VECTOR_BASE, (RCS421RegVal) &interrupt_vector_table);
 
   /* Initialize all page table entries to invalid */
-  for (i=0; i< NUM_PAGES; i++) {
+  for (i=0; i< PAGE_TABLE_LEN; i++) {
     // Region 1
     (page_table1_p + i)->pfn = PFN_INVALID;
     (page_table1_p + i)->valid = PTE_INVALID;

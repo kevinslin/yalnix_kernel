@@ -7,13 +7,13 @@
 void
 dprintf(char *msg, int level) {
   if (level >= DEBUG_LEVEL) {
-    printf("%s\n", msg);
+    printf("[debug]:%s\n", msg);
   }
 }
 
 
 void unix_error(char *msg) /* unix-style error */
 {
-    fprintf(stderr, "%s: %s\n", msg, strerror(errno));
+    fprintf(stderr, "%s\n", msg);
     exit(0);
 }

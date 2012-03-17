@@ -8,7 +8,7 @@ void
 debug_page_tables(struct pte *table, int verbosity) {
   int i;
   if (verbosity) {
-    for (i=0; i<NUM_PAGES; i++) {
+    for (i=0; i<PAGE_TABLE_LEN; i++) {
       printf("i:%i, pfn: %u, valid: %u\n", i, (table + i)->pfn, (table + i)->valid);
     }
   } // end verbosity
@@ -115,8 +115,8 @@ int get_free_frame() {
  * Create a page table with no valid page tables
  */
 struct pte *create_page_table() {
-  /*struct pte page_table[NUM_PAGES];*/
-  struct pte *page_table = (struct pte *)malloc(sizeof(struct pte) * NUM_PAGES);
+  /*struct pte page_table[PAGE_TABLE_LEN];*/
+  struct pte *page_table = (struct pte *)malloc(sizeof(struct pte) * PAGE_TABLE_LEN);
   if (page_table == NULL) {
     return NULL;
   }
@@ -132,7 +132,7 @@ struct pte *create_page_table() {
 struct pte *clone_page_table(struct pte *src) {
   int i;
   struct pte *dest = create_page_table();
-  for (i=0; i<NUM_PAGES; i++) {
+  for (i=0; i<PAGE_TABLE_LEN; i++) {
     (dest + i)->pfn = (src + i)->pfn;
     (dest + i)->valid = (src +i)->valid;
     (dest + i)->uprot = (src +i)->uprot;
@@ -143,7 +143,7 @@ struct pte *clone_page_table(struct pte *src) {
 
 struct pte *reset_page_table(struct pte *page_table) {
   int i;
-  for (i=0; i<NUM_PAGES; i++) {
+  for (i=0; i<PAGE_TABLE_LEN; i++) {
     (page_table + i)->pfn = PFN_INVALID;
     (page_table + i)->valid = PTE_INVALID;
     (page_table + i)->uprot = PROT_NONE;

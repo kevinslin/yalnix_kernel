@@ -11,7 +11,6 @@
 #define PTE_VALID 1
 #define PTE_INVALID 0
 #define PFN_INVALID  0xdeadb
-#define NUM_PAGES 512
 
 #define TABLE1_OFFSET 512
 #define FRAME_NOT_FREE -1
@@ -34,7 +33,7 @@ struct pcb{
   void *brk; //heap limit
   void *stack_limit;
   SavedContext context;
-  struct pte page_table[NUM_PAGES];
+  struct pte page_table[PAGE_TABLE_LEN];
   struct pcb *parent;
   struct pcb *children_active[5];
   struct pcb *children_wait[5];
