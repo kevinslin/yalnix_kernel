@@ -221,20 +221,21 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   pcb_current->psr_next = frame->psr;
   pcb_current->frame = frame;
 
+  /* Enable virtual memory */
+  dprintf("enabling virtual memory...", 1);
+  WriteRegister( REG_VM_ENABLE, (RCS421RegVal) 1);
+  VM_ENABLED = true;
+  dprintf("enabled virtual memory...", 1);
+
   // Clone page0 into current context
   struct pte *page = init_pcb->page_table;
   page = clone_page_table(page_table0_p);
-  page_table0_p = page;
-
-  /* Enable virtual memory */
-  printf("enabling virtual memory...\n");
-  WriteRegister( REG_VM_ENABLE, (RCS421RegVal) 1);
-  VM_ENABLED = true;
-  printf("enabled virtual memory...\n");
+  /*page_table0_p = page;*/
 
   printf("writing new ptr0...\n");
   WriteRegister( REG_PTR0, (RCS421RegVal) page);
   printf("page 508: %u\n", (page + 508)->valid);
+  page_table0_p = page; //initial program has loaded, the current table0 = page
 
   printf("about to load program...\n");
   if(LoadProgram("init", cmd_args, frame) != 0) {
@@ -247,7 +248,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
     WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   }
 
-  printf("done starting kernel!\n");
+  dprintf("done starting kernel!", 0);
 }
 
 /* Context switches */
@@ -255,22 +256,25 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
  * Performs first context switch into idle
  */
 SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
+  dprintf("in initswitchfunction...", 0);
+  fflush(stdout);
+
+  // Init function gone, there's no function to switch from
   struct pcb *p = (struct pcb *) p1;
   struct pte *page = (p->page_table);
 
-  printf("in initswitchfunction...\n");
-  fflush(stdout);
-
-  //TODO: andrew told me to trust him...
+  // get a copy of the current table0 table
+  dprintf("cloning region0...", 0);
   page = clone_page_table(page_table0_p);
-  page_table0_p = page;
   /*unsigned int pfn:20;*/
   /*pfn = (page_table0_p + get_page_index(page_table0_p))->pfn;*/
-
-  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   printf("[debug]: page 508: %u\n", (page_table0_p + 508)->valid);
+  dprintf("updating reg_ptr0...", 0);
+  WriteRegister( REG_PTR0, (RCS421RegVal) page);
+
   if (VM_ENABLED) {
-    /*WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);*/
+    dprintf("flusing region0...", 0);
+    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   }
 
   return ctxp;
@@ -289,15 +293,24 @@ SavedContext* forkswitchfunction(SavedContext *ctxp, void *p1, void *p2 ){
 }
 
 void start_idle(ExceptionStackFrame *frame) {
+  dprintf("in start_idle...", 0);
   struct pcb *idle_pcb;
   idle_pcb = Create_pcb(NULL);
   pcb_current = idle_pcb;
   idle_pcb->frame = frame;
+  dprintf("created pcb...", 0);
+  debug_page_tables(page_table0_p, 1);
+  printf(DIVIDER);
+  debug_page_tables(page_table1_p, 1);
+  fflush(stdout);
 
   // Initiate context switch
   SavedContext *ctx;
   ctx->id = get_next_pid();
+  dprintf("about to contextswitch...", 0);
+  fflush(stdout);
   ContextSwitch(initswitchfunction, ctx, idle_pcb, NULL);
-  printf("[debug]: finished context switching...\n");
+
+  dprintf("about to load program...", 0);
   LoadProgram("idle", args_copy, frame);
 }

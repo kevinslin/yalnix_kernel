@@ -41,6 +41,7 @@ struct pcb{
   void *pc_next;
   void *sp_next;
   unsigned long psr_next;
+  char *name; //for debugging purposes
 };
 
 /* Pcb stuff */

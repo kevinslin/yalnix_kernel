@@ -12,6 +12,8 @@ debug_page_tables(struct pte *table, int verbosity) {
       printf("i:%i, pfn: %u, valid: %u\n", i, (table + i)->pfn, (table + i)->valid);
     }
   } // end verbosity
+  printf("start address: %p\n", table);
+  printf("end address: %p\n", table + PAGE_TABLE_LEN);
 }
 
 // Debug stack frame
@@ -200,8 +202,7 @@ struct pcb *Create_pcb(struct pcb *parent) {
   struct pcb *a_pcb;
   a_pcb = create_pcb(parent);
   if (a_pcb == NULL) {
-    printf("error creating pcb\n");
-    exit(1);
+    unix_error("error creating pcb!");
   }
   return a_pcb;
 }

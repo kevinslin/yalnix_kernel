@@ -15,5 +15,5 @@ dprintf(char *msg, int level) {
 void unix_error(char *msg) /* unix-style error */
 {
     fprintf(stderr, "%s\n", msg);
-    exit(0);
+    exit(1);
 }

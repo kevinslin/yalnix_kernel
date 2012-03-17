@@ -13,13 +13,13 @@ extern void start_idle(ExceptionStackFrame *frame);
 
 void
 interrupt_kernel(ExceptionStackFrame *frame) {
-  printf("got a kernel interrupt\n");
+	dprintf("in interrupt_kernel...", 0);
 	switch(frame->code) {
 		case YALNIX_FORK:
 			printf("syscall fork...\n");
 			break;
 		case YALNIX_EXEC:
-			printf("syscall exec...\n");
+			dprintf("syscall exec...", 0);
 			break;
 		case YALNIX_EXIT:
 			printf("sys call exit\n");
@@ -65,9 +65,9 @@ void interrupt_disk(ExceptionStackFrame *frame){
  * Exit current process
  */
 void Exit(int status) {
+	dprintf("in exit...", 0);
 	ExceptionStackFrame *frame = pcb_current->frame;
 	//free_pcb(pcb_current); //FIXME: implement
-	printf("current process exiting..\n");
 	start_idle(frame);
 	exit(1); //FIXME: right?
 }
