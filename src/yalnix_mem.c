@@ -255,10 +255,42 @@ struct pcb *create_pcb(struct pcb *parent) {
   return pcb_p;
 }
 
-//TODO
+/*
+ * Free pcb structure
+ */
 int free_pcb(struct pcb *pcb_p) {
+  free(pcb_p->page_table_p);
+  free(pcb_p->children_wait);
+  free(pcb_p->children_active); //TODO: free elemetns in queue
   free(pcb_p);
   return 1;
+}
+
+/*
+ *
+ */
+int terminate_pcb(struct pcb *pcb_p) {
+  int i;
+  struct pcb *p;
+  elem *e;
+  assert(0 != pcb_p->children_wait->len);
+
+  // set parent of children to null - because they no longer have parents :(
+  while(0 <= pcb_p->children_active) {
+    e = dequeue(children_active);
+    p = (struct pcb *)e;
+    p->parent = NULL;
+  }
+  // zombie status need to be collected by parent
+  p->status = STATUS_ZOMBIE;
+  if (NULL != pcb_p->parent) {
+    enqueue(pcb_p->parent->children_wait, pcb_p);
+    if (STATUS_WAIT == pcb_p->parent->status) {
+      //TODO: remove parent from waiting queue
+      // add removed parent to the ready queue
+    }
+  } else
+    free_pcb(pcb_p);
 }
 
 struct pcb *Create_pcb(struct pcb *parent) {

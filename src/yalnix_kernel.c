@@ -107,10 +107,51 @@ int Fork(){
 }
 
 /*
- * Switch from process 1 to process 2
+ * Wait for children to finish
  */
-/*SavedContext *switchfunction(SavedContext *ctxp, void *p1, void *p2) {*/
-  /*SavedContext *c;*/
-  /*struct pcb *p1 = (struct pcb *)p1;*/
-  /*struct pcb *p2 = (struct pcb *)p2;*/
-/*}*/
+int Wait(int *status) {
+	elem *e;
+	struct pcb * p;
+	unsigned int pid;
+
+	while (0 >= pcb_current->children_wait->len) {
+		// check if process has children in first place
+		if (0 >= pcb_current->children_active->len){
+			unix_error("current process has no children!");
+		}
+		// current process is waiting
+		pcb_current->status = STATUS_WAIT;
+		// context switch
+		enqueue(p_waiting, (void *) pcb_current);
+		get_next_ready_process();
+	}
+	e = dequeue(child->children_wait);
+	// get status of children
+	p = (struct pcb *) e;
+	pid = p->pid;
+	status = &p->status;
+  free_pcb(pcb_p);
+	return pid;
+}
+
+/*
+extern int Fork(void);
+extern int Exec(char *, char **);
+extern void Exit(int) __attribute__ ((noreturn));
+extern int GetPid(void);
+extern int Brk(void *);
+extern int Delay(int);
+extern int TtyRead(int, void *, int);
+extern int TtyWrite(int, void *, int);
+extern int Register(unsigned int);
+extern int Send(void *, int);
+extern int Receive(void *);
+extern int ReceiveSpecific(void *, int);
+extern int Reply(void *, int);
+extern int Forward(void *, int, int);
+extern int CopyFrom(int, void *, void *, int);
+extern int CopyTo(int, void *, void *, int);
+extern int ReadSector(int, void *);
+extern int WriteSector(int, void *);
+*/
+

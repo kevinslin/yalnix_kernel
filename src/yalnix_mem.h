@@ -19,6 +19,10 @@
 
 #define MAX_CHILDREN 5
 
+#define STATUS_RUNNING 1
+#define STATUS_WAIT 2
+#define STATUS_ZOMBIE 3
+
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
 #define get_page_mem(page_index) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
 
@@ -86,6 +90,7 @@ int free_page_table(struct pte *page_table);
 struct pcb *Create_pcb(struct pcb *parent);
 struct pcb *create_pcb(struct pcb *parent);
 int free_pcb(struct pcb *pcb_p);
+int terminate_pcb(struct pcb *pcb_p);
 
 /* Debug functions*/
 void debug_page_table(struct pte *table, int verbosity);
