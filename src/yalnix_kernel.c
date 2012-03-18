@@ -15,12 +15,22 @@ void Exit(int status) {
 }
 
 int Delay(int clock_ticks) {
+	struct pcb *pcb_p;
+	elem *e;
+
+	// set delay on current proccess
 	printf("[info]:clock_ticks: %i\n", clock_ticks);
   if (0 == clock_ticks) return 0;
   if (0 > clock_ticks) return ERROR;
   pcb_current->time_delay = clock_ticks;
-  //TODO: start a new process
-  //ContextSwitch(switchfunction, pcb_current->context, pcb_current);
+
+	/*e = dequeue(p_ready);*/
+	/*if (NULL == e) {*/
+		/*//TODO: get idle process*/
+	/*}*/
+
+  /*//TODO: start a new process*/
+	/*ContextSwitch(switchfunc_delay, pcb_current->context, pcb_current);*/
 	return 1;
 }
 

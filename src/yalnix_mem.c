@@ -233,7 +233,6 @@ struct pcb *create_pcb(struct pcb *parent) {
   page_table = init_page_table0(page_table);
   pcb_p->page_table_p = page_table;
 
-
   pcb_p->children_active = create_queue();
   pcb_p->children_wait = create_queue();
   if (parent != NULL) {
@@ -271,19 +270,19 @@ struct pcb *Create_pcb(struct pcb *parent) {
 /* Switching functions */
 
 /*
- * Normal context switch
+ * Switch a function on delay
  */
-
-/*SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {*/
-  /*struct pcb *p1 = (struct pcb *)p1;*/
-  /*struct pcb *p2 = (struct pcb *)p2;*/
-  /*// Set pcb to new process*/
-  /*pcb_current = p2;*/
-  /*// Put p1 into queue*/
-  /*enqueue(p_waiting, (void *)p1);*/
-  /*// switch region0 table*/
-  /*WriteRegister( REG_PTR0, (RCS421RegVal) p2->page_table_p);*/
-/*}*/
+SavedContext *switchfunc_delay(SavedContext *ctxp, void *pcb1, void *pcb2) {
+  struct pcb *p1 = (struct pcb *)p1;
+  struct pcb *p2 = (struct pcb *)p2;
+  // Set pcb to new process
+  pcb_current = p2;
+  // Put p1 into queue
+  enqueue(p_delay, (void *)p1);
+  // switch region0 table to p2
+  WriteRegister( REG_PTR0, (RCS421RegVal) p2->page_table_p);
+  return ctxp;
+}
 
 
 /*
@@ -295,6 +294,37 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
   struct pte *parent_table = (parent->page_table_p);
   struct pte *child_table = (child->page_table_p);
   child_table = clone_page_table(parent_table);
+  return ctxp;
+}
+
+/*
+ * Idle switch
+ */
+SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
+  dprintf("in switchfunc_idle", 0);
+  fflush(stdout);
+
+  // Init function gone, there's no function to switch from
+  struct pcb *p = (struct pcb *) p1;
+  struct pte *page_table = (p->page_table_p);
+
+  printf("[debug]: page 508: %u\n", (page_table + 508)->valid);
+  dprintf("updating reg_ptr0...", 0);
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
+
+  /*if (VM_ENABLED) {*/
+    /*dprintf("flusing region0...", 0);*/
+    /*WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);*/
+  /*}*/
+
+  return ctxp;
+}
+
+/*
+ * Returns context and nothign else
+ */
+SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 ) {
+  dprintf("in switchfunc_nop", 0);
   return ctxp;
 }
 
