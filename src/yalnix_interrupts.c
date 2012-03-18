@@ -14,8 +14,6 @@ extern void start_idle(ExceptionStackFrame *frame);
 void
 interrupt_kernel(ExceptionStackFrame *frame) {
   int is_valid;
-
-	dprintf("in interrupt_kernel...", 0);
 	switch(frame->code) {
 		case YALNIX_FORK:
 			printf("syscall fork...\n");
@@ -25,11 +23,13 @@ interrupt_kernel(ExceptionStackFrame *frame) {
 			break;
 		case YALNIX_EXIT:
 			printf("sys call exit\n");
+      //TODO(TEST):
+      start_idle(frame);
 			//TODO: get actual status
 			Exit(0);
 			break;
 		case YALNIX_WAIT:
-			printf("syscall wait...\n");
+      dprintf("syscall wait...", 0);
 			break;
 		case YALNIX_GETPID:
 			printf("syscall getting pid...\n");
@@ -39,7 +39,7 @@ interrupt_kernel(ExceptionStackFrame *frame) {
 			printf("syscall getting brk...\n");
 			break;
 		case YALNIX_DELAY:
-			printf("syscall delay... \n");
+      /*dprintf("syscall delay", 0);*/
 			is_valid = Delay(frame->regs[1]);
       frame->regs[0] = is_valid;
 			break;

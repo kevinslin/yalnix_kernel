@@ -53,9 +53,12 @@ queue *p_ready;
 queue *p_waiting;
 queue *p_delay;
 
+/* Etc */
+bool VM_ENABLED;
+
 /* Pcb stuff */
 struct pcb *pcb_current;
-struct pcb *pcb_idle;
+//struct pcb *pcb_idle;
 
 /* Frame Stuff */
 int NUM_FRAMES; /* number of frames, obtained by dividing pmem_size / pagesize */
@@ -91,13 +94,14 @@ void debug_frames();
 void debug_pcb(struct pcb *pcb_p);
 
 /* Context switch funcs */
-SavedContext* switchfunc_delay(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 );
+SavedContext* switchfunc_normal(SavedContext *ctxp, void *p1, void *p2 );
 
 /* Misc Functions */
 int get_next_pid();
+struct pcb *get_next_ready_process();
 
 
 #endif	/* end _yalnix_mem_h */

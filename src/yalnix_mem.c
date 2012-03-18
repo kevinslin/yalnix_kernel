@@ -1,5 +1,8 @@
 #include "yalnix_mem.h"
 
+
+extern void start_idle();
+
 /* Globals */
 int PID = 0;
 
@@ -228,10 +231,10 @@ struct pcb *create_pcb(struct pcb *parent) {
   }
 
   // Initiate page table
-  page_table = create_page_table();
-  if (NULL == page_table) unix_error("error creating page table!");
-  page_table = init_page_table0(page_table);
-  pcb_p->page_table_p = page_table;
+  /*page_table = create_page_table();*/
+  /*if (NULL == page_table) unix_error("error creating page table!");*/
+  /*page_table = init_page_table0(page_table);*/
+  /*pcb_p->page_table_p = page_table;*/
 
   pcb_p->children_active = create_queue();
   pcb_p->children_wait = create_queue();
@@ -270,22 +273,6 @@ struct pcb *Create_pcb(struct pcb *parent) {
 /* Switching functions */
 
 /*
- * Switch a function on delay
- */
-SavedContext *switchfunc_delay(SavedContext *ctxp, void *pcb1, void *pcb2) {
-  struct pcb *p1 = (struct pcb *)p1;
-  struct pcb *p2 = (struct pcb *)p2;
-  // Set pcb to new process
-  pcb_current = p2;
-  // Put p1 into queue
-  enqueue(p_delay, (void *)p1);
-  // switch region0 table to p2
-  WriteRegister( REG_PTR0, (RCS421RegVal) p2->page_table_p);
-  return ctxp;
-}
-
-
-/*
  * Context switch from fork
  */
 SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
@@ -321,6 +308,27 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
 }
 
 /*
+ * Initial context switch into first process (idle)
+ */
+SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
+  dprintf("in switchfunc_idle...", 0);
+  fflush(stdout);
+
+  // Get page table
+  struct pcb *p = (struct pcb *) p1;
+  struct pte *page_table = (p->page_table_p);
+
+  // Update register
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
+
+  // flush tlb
+  if (VM_ENABLED) {
+    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+  }
+  return ctxp;
+}
+
+/*
  * Returns context and nothign else
  */
 SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 ) {
@@ -328,3 +336,36 @@ SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 ) {
   return ctxp;
 }
 
+/*
+ * Switch from process 1 to process 2
+ */
+SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
+  struct pcb *p1 = (struct pcb *)p1;
+  struct pcb *p2 = (struct pcb *)p2;
+
+  // Set regs & psr
+  p2->frame->pc = p2->pc_next;
+  p2->frame->sp = p2->sp_next;
+  p2->frame->psr = p2->psr_next;
+  // Set pcb to new process
+  pcb_current = p2;
+  /*// Put p1 into queue*/
+  /*enqueue(p_delay, (void *)p1);*/
+  // switch region0 table to p2
+  WriteRegister( REG_PTR0, (RCS421RegVal) p2->page_table_p);
+  return ctxp;
+}
+
+
+/*
+ * Gets a process from ready or idle process
+ */
+struct pcb *get_next_ready_process() {
+  elem *e;
+  e = dequeue(p_ready);
+  // no ready process, create idle
+  if (NULL == e) {
+    start_idle();
+  }
+  ContextSwitch(switchfunc_normal, pcb_current->context, pcb_current, e->value);
+}

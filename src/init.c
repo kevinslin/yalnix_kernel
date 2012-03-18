@@ -12,7 +12,7 @@ main()
     int b = 10, d = 20;
     int *foo;
 
-    Delay(20);
+    /*Delay(20);*/
     /* Pause(); */
 
     TracePrintf(2, "init!\n");
@@ -21,6 +21,7 @@ main()
     printf("this %d is %d a %d test %d\n", a, b, c, d);
     printf("the pid is: %i\n", GetPid());
     foo = (int *)malloc(sizeof(int));
+    Exit(3);
 
     for (;;) {
       Delay(5);

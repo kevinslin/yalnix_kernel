@@ -19,15 +19,16 @@ int Delay(int clock_ticks) {
 	elem *e;
 
 	// set delay on current proccess
-	printf("[info]:clock_ticks: %i\n", clock_ticks);
+	/*printf("[info]:clock_ticks: %i\n", clock_ticks);*/
   if (0 == clock_ticks) return 0;
   if (0 > clock_ticks) return ERROR;
   pcb_current->time_delay = clock_ticks;
 
-	/*e = dequeue(p_ready);*/
-	/*if (NULL == e) {*/
-		/*//TODO: get idle process*/
+	/*// Put current process in delay*/
+	/*if (0 > enqueue(p_delay, e->value)) {*/
+		/*unix_error("error enqueing process!");*/
 	/*}*/
+
 
   /*//TODO: start a new process*/
 	/*ContextSwitch(switchfunc_delay, pcb_current->context, pcb_current);*/

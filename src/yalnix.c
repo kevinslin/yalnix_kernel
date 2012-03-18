@@ -18,7 +18,6 @@ extern int LoadProgram(char *name, char **args, ExceptionStackFrame *frame, stru
 
 /* Globals */
 void *interrupt_vector_table[TRAP_VECTOR_SIZE];
-bool VM_ENABLED;
 char **args_copy;
 
 struct pte page_table1[PAGE_TABLE_LEN];
@@ -218,6 +217,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   // Create init program
   /* Create pcb for init program */
   struct pcb *init_pcb;
+  struct pte *init_page_table;
 
   init_pcb = Create_pcb(NULL);
   printf("[debug]: created pcb...\n");
@@ -227,6 +227,13 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   pcb_current->sp_next = frame->sp;
   pcb_current->psr_next = frame->psr;
   pcb_current->frame = frame;
+
+  // Initiate page table
+  init_page_table = create_page_table();
+  if (NULL == init_page_table) unix_error("error creating page table!");
+  init_page_table = init_page_table0(init_page_table);
+  init_pcb->page_table_p = init_page_table;
+
   //TODO: free existing page tables or make it so that create pcb
   //doesn't malloc for page tables
   pcb_current->page_table_p = page_table0_p;
@@ -278,27 +285,29 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
 /*
  * Create the idle pcb process
  */
-void create_idle_pcb(ExceptionStackFrame *frame) {
-  dprintf("in create_idle_pcb...",  0);
-  pcb_idle = Create_pcb(NULL);
-  pcb_idle->frame = frame;
+/*void create_idle_pcb(ExceptionStackFrame *frame) {*/
+  /*dprintf("in create_idle_pcb...",  0);*/
+  /*pcb_idle = Create_pcb(NULL);*/
+  /*pcb_idle->frame = frame;*/
 
-  // Get context
-  dprintf("creating initial saved_context", 0);
-  SavedContext *ctx; //nothing in ctx in beginiing
-  ctx = (SavedContext *)malloc(sizeof(SavedContext));
-  /*dprintf("about to context switch...", 0);*/
-  /*ContextSwitch(switchfunc_nop, ctx, (void *)pcb_idle, (void *)pcb_idle);*/
+  /*// Get context*/
+  /*dprintf("creating initial saved_context", 0);*/
+  /*SavedContext *ctx; //nothing in ctx in beginiing*/
+  /*ctx = (SavedContext *)malloc(sizeof(SavedContext));*/
+  /*[>dprintf("about to context switch...", 0);<]*/
+  /*[>ContextSwitch(switchfunc_nop, ctx, (void *)pcb_idle, (void *)pcb_idle);<]*/
 
-  // Load idle program
-  dprintf("about to load program...", 0);
-  LoadProgram("idle", args_copy, frame, &pcb_idle);
-}
+  /*// Load idle program*/
+  /*dprintf("about to load program...", 0);*/
+  /*LoadProgram("idle", args_copy, frame, &pcb_idle);*/
+/*}*/
 
 /*
  * Start the idle process
  */
 void start_idle(ExceptionStackFrame *frame) {
+  struct pcb *pcb_idle;
+  struct pte *page_table;
   dprintf("in start_idle...", 0);
   pcb_idle = Create_pcb(NULL);
   pcb_idle->pc_next = frame->pc;
@@ -306,6 +315,11 @@ void start_idle(ExceptionStackFrame *frame) {
   pcb_idle->psr_next = frame->psr;
   pcb_idle->frame = frame;
   pcb_current = pcb_idle;
+
+  page_table = create_page_table();
+  if (NULL == page_table) unix_error("problem creating page table!");
+  page_table = init_page_table0(page_table);
+  pcb_current->page_table_p = page_table;
 
   // Get context
   dprintf("creating initial saved_context", 0);
