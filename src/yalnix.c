@@ -282,16 +282,16 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
 void start_idle(ExceptionStackFrame *frame) {
   dprintf("in start_idle...", 0);
   struct pcb *idle_pcb;
-  struct pte *page_table;
+  /*struct pte *page_table;*/
   idle_pcb = Create_pcb(NULL);
   pcb_current = idle_pcb;
   pcb_current->frame = frame;
-  page_table = create_page_table();
-  if (NULL == page_table) {
-    unix_error("problem creating page table");
-  }
-  page_table = init_page_table0(page_table);
-  pcb_current->page_table_p = page_table;
+  /*page_table = create_page_table();*/
+  /*if (NULL == page_table) {*/
+    /*unix_error("problem creating page table");*/
+  /*}*/
+  /*page_table = init_page_table0(page_table);*/
+  /*pcb_current->page_table_p = page_table;*/
 
   dprintf("created pcb...", 0);
   debug_page_table(page_table0_p, 0);

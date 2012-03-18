@@ -36,7 +36,7 @@ struct pcb{
   void *stack_limit; // DEPRECIATE?
   int stack_limit_index;
   SavedContext *context;
-  struct pte page_table[PAGE_TABLE_LEN]; //depreciate?
+  //struct pte page_table[PAGE_TABLE_LEN]; //depreciate?
   struct pte *page_table_p;
   struct pcb *parent;
   queue *children_active;

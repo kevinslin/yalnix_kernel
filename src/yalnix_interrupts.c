@@ -67,7 +67,7 @@ void interrupt_memory(ExceptionStackFrame *frame){
 
 	unsigned int addr = ((long)frame->addr);
 	int addr_page = get_page_index(addr);
-  page_table = pcb_current->page_table;
+  page_table = pcb_current->page_table_p;
 
 	if(addr_page > pcb_current->brk_index && addr_page<pcb_current->stack_limit_index){
 		if(addr_page - pcb_current->brk_index <= 1){

@@ -218,15 +218,30 @@ struct pte *reset_page_table_limited(struct pte *page_table) {
  * Malloc pcb space
  */
 struct pcb *create_pcb(struct pcb *parent) {
-  struct pcb *pcb_p = (struct pcb *)malloc(sizeof(struct pcb));
+  struct pcb *pcb_p;
+  struct pte *page_table;
+
+  // Initiate pcb
+  pcb_p = (struct pcb *)malloc(sizeof(struct pcb));
   if (pcb_p == NULL) {
-    return NULL;
+    unix_error("error creating pcb");
   }
+
+  // Initiate page table
+  page_table = create_page_table();
+  if (NULL == page_table) unix_error("error creating page table!");
+  page_table = init_page_table0(page_table);
+  pcb_p->page_table_p = page_table;
+
+
+  pcb_p->children_active = create_queue();
+  pcb_p->children_wait = create_queue();
   if (parent != NULL) {
-    //TODO: make sure pcb_p gets modifications
+    //TODO: check to make sure pcb_p gets modifications
     enqueue(parent->children_active, pcb_p);
   }
-  pcb_p->pid = get_next_pid();
+
+  pcb_p->pid = get_next_pid(); //DETAIL (make sure this doesn't overflow...)
   pcb_p->time_current = 0;
   pcb_p->time_delay = 0;
   pcb_p->status = 0;
@@ -277,8 +292,8 @@ struct pcb *Create_pcb(struct pcb *parent) {
 SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
   struct pcb *parent = p1;
   struct pcb *child = p2;
-  struct pte *parent_table = (parent->page_table);
-  struct pte *child_table = (child->page_table);
+  struct pte *parent_table = (parent->page_table_p);
+  struct pte *child_table = (child->page_table_p);
   child_table = clone_page_table(parent_table);
   return ctxp;
 }

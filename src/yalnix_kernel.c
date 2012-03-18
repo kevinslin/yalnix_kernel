@@ -33,7 +33,7 @@ int Brk(void *addr){
 	int pages_needed;
 	int i;
 	int frame;
-	struct pte *page_table = pcb_current->page_table;
+	struct pte *page_table = pcb_current->page_table_p;
 
 	user_heap_limit_index = pcb_current->brk_index;
 	addr_index = get_page_index(addr);
