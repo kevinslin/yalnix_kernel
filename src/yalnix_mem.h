@@ -62,7 +62,7 @@ bool VM_ENABLED;
 
 /* Pcb stuff */
 struct pcb *pcb_current;
-//struct pcb *pcb_idle;
+struct pcb *pcb_idle;
 
 /* Frame Stuff */
 int NUM_FRAMES; /* number of frames, obtained by dividing pmem_size / pagesize */
@@ -90,7 +90,7 @@ int free_page_table(struct pte *page_table);
 struct pcb *Create_pcb(struct pcb *parent);
 struct pcb *create_pcb(struct pcb *parent);
 int free_pcb(struct pcb *pcb_p);
-int terminate_pcb(struct pcb *pcb_p);
+struct pte *terminate_pcb(struct pcb *pcb_p);
 
 /* Debug functions*/
 void debug_page_table(struct pte *table, int verbosity);
@@ -103,10 +103,11 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_normal(SavedContext *ctxp, void *p1, void *p2 );
+SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2);
 
 /* Misc Functions */
 int get_next_pid();
-struct pcb *get_next_ready_process();
+void get_next_ready_process(struct pte *page_table);
 
 
 #endif	/* end _yalnix_mem_h */

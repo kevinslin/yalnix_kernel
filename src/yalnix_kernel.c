@@ -7,32 +7,27 @@ extern void start_idle(ExceptionStackFrame *frame);
  * Exit current process
  */
 void Exit(int status) {
+	struct pte *page_table;
 	dprintf("in exit...", 0);
-	ExceptionStackFrame *frame = pcb_current->frame;
-	free_pcb(pcb_current); //FIXME: implement
-	start_idle(frame);
+	//ExceptionStackFrame *frame = pcb_current->frame;
+	page_table = terminate_pcb(pcb_current); //FIXME: implement
+	get_next_ready_process(page_table);
 	//exit(1); //FIXME: right?
 }
 
 int Delay(int clock_ticks) {
-	struct pcb *pcb_p;
-	elem *e;
-
 	// set delay on current proccess
 	/*printf("[info]:clock_ticks: %i\n", clock_ticks);*/
   if (0 == clock_ticks) return 0;
   if (0 > clock_ticks) return ERROR;
   pcb_current->time_delay = clock_ticks;
 
-	/*// Put current process in delay*/
-	/*if (0 > enqueue(p_delay, e->value)) {*/
-		/*unix_error("error enqueing process!");*/
-	/*}*/
-
-
-  /*//TODO: start a new process*/
-	/*ContextSwitch(switchfunc_delay, pcb_current->context, pcb_current);*/
-	return 1;
+	// Put current process in delay
+	if (0 > enqueue(p_delay, (void *) pcb_current)) {
+		unix_error("error enqueing process!");
+	}
+	get_next_ready_process(pcb_current->page_table_p);
+	return 0;
 }
 
 /*
@@ -84,13 +79,13 @@ int Brk(void *addr){
 
 
 int Fork(){
+	dprintf("in fork...", 0);
 	struct pcb *parent = pcb_current;
 	struct pcb *child = Create_pcb(parent);
 	child->brk_index = parent->brk_index;
 	child->stack_limit_index = parent->stack_limit_index;
 	SavedContext *ctx = child->context;
 
-	//push child on ready queue when queues are implemented
 	enqueue(p_ready, child);
 
 	if(ContextSwitch(switchfunc_fork, ctx, parent, child) == -1) {
@@ -123,14 +118,14 @@ int Wait(int *status) {
 		pcb_current->status = STATUS_WAIT;
 		// context switch
 		enqueue(p_waiting, (void *) pcb_current);
-		get_next_ready_process();
+		get_next_ready_process(pcb_current->page_table_p);
 	}
-	e = dequeue(child->children_wait);
+	e = dequeue(pcb_current->children_wait);
 	// get status of children
 	p = (struct pcb *) e;
 	pid = p->pid;
 	status = &p->status;
-  free_pcb(pcb_p);
+  free_pcb(p);
 	return pid;
 }
 

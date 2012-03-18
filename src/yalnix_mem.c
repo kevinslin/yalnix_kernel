@@ -222,7 +222,7 @@ struct pte *reset_page_table_limited(struct pte *page_table) {
  */
 struct pcb *create_pcb(struct pcb *parent) {
   struct pcb *pcb_p;
-  struct pte *page_table;
+  /*struct pte *page_table;*/
 
   // Initiate pcb
   pcb_p = (struct pcb *)malloc(sizeof(struct pcb));
@@ -251,7 +251,7 @@ struct pcb *create_pcb(struct pcb *parent) {
   pcb_p->frame = NULL;
   pcb_p->pc_next = NULL;
   pcb_p->sp_next = NULL;
-  pcb_p->psr_next = -1;
+  pcb_p->psr_next = -1; //TODO: what mode is this?
   return pcb_p;
 }
 
@@ -259,9 +259,10 @@ struct pcb *create_pcb(struct pcb *parent) {
  * Free pcb structure
  */
 int free_pcb(struct pcb *pcb_p) {
-  free(pcb_p->page_table_p);
+  /*free(pcb_p->page_table_p);*/
   free(pcb_p->children_wait);
   free(pcb_p->children_active); //TODO: free elemetns in queue
+  free(pcb_p->context);
   free(pcb_p);
   return 1;
 }
@@ -269,28 +270,43 @@ int free_pcb(struct pcb *pcb_p) {
 /*
  *
  */
-int terminate_pcb(struct pcb *pcb_p) {
-  int i;
+struct pte *terminate_pcb(struct pcb *pcb_p) {
+  dprintf("in terminate_pcb...", 0);
   struct pcb *p;
   elem *e;
-  assert(0 != pcb_p->children_wait->len);
+  struct pte *page_table;
+
+  page_table = pcb_current->page_table_p; // get reference to current page table
+  pcb_current = NULL;  //doesn't exist any more
 
   // set parent of children to null - because they no longer have parents :(
-  while(0 <= pcb_p->children_active) {
-    e = dequeue(children_active);
+  while(0 < pcb_p->children_active->len) {
+    e = dequeue(pcb_p->children_active);
     p = (struct pcb *)e;
     p->parent = NULL;
   }
+  dprintf("process has no active children...", 0);
+  if (NULL == pcb_p->parent) {
+    dprintf("process has no parent", 0);
+  } else {
+    dprintf("process has parent", 0);
+  }
+  printf("process status: %i\n", pcb_p->status);
   // zombie status need to be collected by parent
-  p->status = STATUS_ZOMBIE;
+  pcb_p->status = STATUS_ZOMBIE;
   if (NULL != pcb_p->parent) {
+    dprintf("process has a parent...", 0);
     enqueue(pcb_p->parent->children_wait, pcb_p);
     if (STATUS_WAIT == pcb_p->parent->status) {
       //TODO: remove parent from waiting queue
       // add removed parent to the ready queue
     }
-  } else
+  } else {
+    dprintf("no parent found...", 0);
     free_pcb(pcb_p);
+  }
+  dprintf("exiting terminate_pcb...", 0);
+  return page_table;
 }
 
 struct pcb *Create_pcb(struct pcb *parent) {
@@ -372,19 +388,50 @@ SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 ) {
  * Switch from process 1 to process 2
  */
 SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
-  struct pcb *p1 = (struct pcb *)p1;
-  struct pcb *p2 = (struct pcb *)p2;
+  dprintf("in switchfunc_normal...", 0);
+  //struct pcb *p1 = (struct pcb *)p1;
+  struct pcb *p2 = (struct pcb *)pcb2;
+  //debug_page_table((struct pte *)ReadRegister(REG_PTR1), 1); //TODO:tmp
 
   // Set regs & psr
-  p2->frame->pc = p2->pc_next;
-  p2->frame->sp = p2->sp_next;
-  p2->frame->psr = p2->psr_next;
+  /*p2->frame->pc = p2->pc_next;*/
+  /*p2->frame->sp = p2->sp_next;*/
+  /*p2->frame->psr = p2->psr_next;*/
+
   // Set pcb to new process
   pcb_current = p2;
+  debug_pcb(p2);
   /*// Put p1 into queue*/
   /*enqueue(p_delay, (void *)p1);*/
   // switch region0 table to p2
+
+  dprintf("about to write new page table address", 0);
   WriteRegister( REG_PTR0, (RCS421RegVal) p2->page_table_p);
+  dprintf("about to flush..", 0);
+  WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+
+  return ctxp;
+}
+
+/*
+ *  TODO:
+ */
+SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
+  dprintf("in initswitchfunction...", 0);
+  fflush(stdout);
+
+  // Get page table
+  struct pcb *p = (struct pcb *) p1;
+  struct pte *page_table = (p->page_table_p);
+
+  // Update current page table
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
+
+  if (VM_ENABLED) {
+    dprintf("flusing region0...", 0);
+    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+  }
+
   return ctxp;
 }
 
@@ -392,12 +439,38 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
 /*
  * Gets a process from ready or idle process
  */
-struct pcb *get_next_ready_process() {
+void get_next_ready_process(struct pte *page_table) {
+  dprintf("in get next ready process...", 0);
   elem *e;
   e = dequeue(p_ready);
-  // no ready process, create idle
+  // no ready process, switch to idle
   if (NULL == e) {
-    start_idle();
+    dprintf("switching idle...", 0);
+    // current process free'd
+    if (NULL == pcb_current) {
+      dprintf("current proccess no longer exists", 0);
+      debug_pcb(pcb_idle);
+      // context switch into idle
+      if (0 > ContextSwitch(switchfunc_normal, pcb_idle->context, NULL, pcb_idle)) {
+        unix_error("failed context switch");
+      }
+      // page table of old process can now safely be free'd
+      dprintf("freeing old page table...", 0);
+      free(page_table);
+    } else {
+      // switch current process
+      if (0 > ContextSwitch(switchfunc_normal, pcb_current->context, pcb_current, pcb_idle)) {
+        unix_error("failed context switch");
+      }
+    }
+    dprintf("finished switching...", 0);
+    pcb_current = pcb_idle;
+  } else {
+    // switch to process in ready
+    if (0 > ContextSwitch(switchfunc_normal, pcb_current->context, pcb_current, e->value)) {
+      unix_error("failed context switch");
+    }
+    pcb_current = (struct pcb *)e->value;
   }
-  ContextSwitch(switchfunc_normal, pcb_current->context, pcb_current, e->value);
+  dprintf("exit terminate pcb", 0);
 }

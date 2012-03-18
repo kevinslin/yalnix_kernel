@@ -14,6 +14,7 @@ extern void start_idle(ExceptionStackFrame *frame);
 void
 interrupt_kernel(ExceptionStackFrame *frame) {
   int is_valid;
+  int result;
 	switch(frame->code) {
 		case YALNIX_FORK:
 			printf("syscall fork...\n");
@@ -22,15 +23,14 @@ interrupt_kernel(ExceptionStackFrame *frame) {
 			dprintf("syscall exec...", 0);
 			break;
 		case YALNIX_EXIT:
-			printf("sys call exit\n");
-      //TODO(TEST):
-      start_idle(frame);
-			//TODO: get actual status
-			Exit(0);
+      dprintf("syscall exit...", 0);
+			Exit(frame->regs[1]);
 			break;
 		case YALNIX_WAIT:
       dprintf("syscall wait...", 0);
-      Wait((int *)frame->regs[1]);
+      result = Wait((int *)frame->regs[1]);
+      dprintf("got back from wait...", 0);
+      frame->regs[0] = result;
 			break;
 		case YALNIX_GETPID:
 			printf("syscall getting pid...\n");
@@ -40,7 +40,7 @@ interrupt_kernel(ExceptionStackFrame *frame) {
 			printf("syscall getting brk...\n");
 			break;
 		case YALNIX_DELAY:
-      /*dprintf("syscall delay", 0);*/
+      dprintf("syscall delay", 0);
 			is_valid = Delay(frame->regs[1]);
       frame->regs[0] = is_valid;
 			break;
@@ -77,11 +77,11 @@ void interrupt_clock(ExceptionStackFrame *frame){
     // context switch if process has been running for longer then 2 clock ticks
     pcb_p->time_current = pcb_p->time_current + 1;
     // don't context switch if idle is the only process
-    if (2 <= pcb_p->time_current) && (0 >= p_ready->len){
+    if ((2 <= pcb_p->time_current) && (0 >= p_ready->len)) {
       // we need to reset the current time and put it into ready
       pcb_p->time_current = 0;
-      enqueue(pcb_p, p_ready);
-      get_next_ready_process();
+      enqueue(p_ready, (void *)pcb_p);
+      get_next_ready_process(pcb_current->page_table_p);
     }
     elem_c = elem_c->next;
   }

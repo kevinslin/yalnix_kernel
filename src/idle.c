@@ -5,7 +5,7 @@
 int
 main() {
   for (;;){
-    Pause();
+    //Pause();
     printf("idling...\n");
   }
   return 1;
