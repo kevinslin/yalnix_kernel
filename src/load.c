@@ -26,7 +26,7 @@
  *  is no longer runnable, and this function returns -2 for errors
  *  in this case.
  */
-int
+  int
 LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pcb_p)
 {
   int fd;
@@ -43,9 +43,9 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   int text_npg;
   int data_bss_npg;
   int stack_npg;
-	int j,k;
+  int j,k;
   struct pte *page_table;
-	printf("[debug]: in loadprogram...\n");
+  printf("[debug]: in loadprogram...\n");
 
   TracePrintf(0, "LoadProgram '%s', args %p\n", name, args);
 
@@ -133,135 +133,99 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   }
 
   /*
-   *  And make sure there will be enough physical memory to
-   *  load the new program.
-   */
-  /*
-  >>>> The new program will require text_npg pages of text,
-    >>>> data_bss_npg pages of data/bss, and stack_npg pages of
-      >>>> stack.  In checking that there is enough free physical
-      >>>> memory for this, be sure to allow for the physical memory
-      >>>> pages already allocated to this process that will be
-      >>>> freed below before we allocate the needed pages for
-      >>>> the new program being loaded.
-    */
-      if (len_free_frames() < (text_npg + data_bss_npg + stack_npg)) {
-        TracePrintf(0,
-            "LoadProgram: program '%s' size too large for physical memory\n",
-            name);
-        free(argbuf);
-        close(fd);
-        return (-1);
-      }
-			//TODO: check if there's free physical memory after we've freed physical memory
-
-			/*
-		>>>> Initialize sp for the current process to (char *)cpp.
-			>>>> The value of cpp was initialized above.
-		*/
-			frame->sp = cpp;
-
-    /*
-     *  Free all the old physical memory belonging to this process,
-     *  but be sure to leave the kernel stack for this process (which
-     *  is also in Region 0) alone.
+     //TODO: (second part of this..)
+     >>>> The new program will require text_npg pages of text,
+     >>>> data_bss_npg pages of data/bss, and stack_npg pages of
+     >>>> stack.  In checking that there is enough free physical
+     >>>> memory for this, be sure to allow for the physical memory
+     >>>> pages already allocated to this process that will be
+     >>>> freed below before we allocate the needed pages for
+     >>>> the new program being loaded.
      */
-			/*
-    >>>> Loop over all PTEs for the current process's Region 0,
-    >>>> except for those corresponding to the kernel stack (between
-        >>>> address KERNEL_STACK_BASE and KERNEL_STACK_LIMIT).  For
-      >>>> any of these PTEs that are valid, free the physical memory
-      >>>> memory page indicated by that PTE's pfn field.  Set all
-      >>>> of these PTEs to be no longer valid.
-			*/
-      page_table = (*pcb_p)->page_table_p;
-      /*debug_page_table(page_table, 0);*/
-      /*debug_page_table(page_table0_p, 0);*/
-			page_table = reset_page_table_limited(page_table);
+  /*
+   * Check if we have enough space for the new process
+   */
+  if (len_free_frames() < (text_npg + data_bss_npg + stack_npg)) {
+    TracePrintf(0,
+        "LoadProgram: program '%s' size too large for physical memory\n",
+        name);
+    free(argbuf);
+    close(fd);
+    return (-1);
+  }
+  //TODO: check if there's free physical memory after we've freed physical memory
+
+  // Initialize the stack pointer for current process
+  frame->sp = cpp;
+
+  /*
+   *  Free all the old physical memory belonging to this process,
+   *  but be sure to leave the kernel stack for this process (which
+   *  is also in Region 0) alone. For any PTE that is valid,
+   *  free the physical memory indicated by the pfn. Set all
+   *  of these PTE to invalid.
+   */
+  page_table = (*pcb_p)->page_table_p;
+  // free everything except kernel stack
+  page_table = reset_page_table_limited(page_table);
 
 
-      /*
-       *  Fill in the page table with the right number of text,
-       *  data+bss, and stack pages.  We set all the text pages
-       *  here to be read/write, just like the data+bss and
-       *  stack pages, so that we can read the text into them
-       *  from the file.  We then change them read/execute.
-       */
+  /*
+   *  Fill in the page table with the right number of text,
+   *  data+bss, and stack pages.  We set all the text pages
+   *  here to be read/write, just like the data+bss and
+   *  stack pages, so that we can read the text into them
+   *  from the file.  We then change them read/execute.
+   */
+  /* First, the text pages */
+  // Leave the first MEM_INVALID_PAGES num of PTEs invalid
+  // kprot to READ | WRITE
+  // uprot to READ | EXEC
+  k = MEM_INVALID_PAGES;
+  for (j = 0; j < text_npg; j++) {
+    (page_table + k)->valid = PTE_VALID;
+    (page_table + k)->pfn = get_free_frame();
+    (page_table + k)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table + k)->uprot = (PROT_READ | PROT_EXEC);
+    k++;
+  }
 
-      /* First, the text pages */
-			/*
-      >>>> Leave the first MEM_INVALID_PAGES number of PTEs in the
-      >>>> Region 0 page table unused (and thus invalid)
-      >>>> For the next text_npg number of PTEs in the Region 0
-      >>>> page table, initialize each PTE:
-      >>>>     valid = 1
-      >>>>     kprot = PROT_READ | PROT_WRITE
-      >>>>     uprot = PROT_READ | PROT_EXEC
-      >>>>     pfn   = a new page of physical memory
-			*/
-			k = MEM_INVALID_PAGES;
-			for (j = 0; j < text_npg; j++) {
-				(page_table + k)->valid = PTE_VALID;
-				(page_table + k)->pfn = get_free_frame();
-				(page_table + k)->kprot = (PROT_READ | PROT_WRITE);
-				(page_table + k)->uprot = (PROT_READ | PROT_EXEC);
-				k++;
-			}
+  /* Then the data and bss pages */
+  // krpot to READ | WRITE
+  // uprot to READ | WRITE
+  for (j = 0; j < data_bss_npg; j++) {
+    (page_table + k)->valid = PTE_VALID;
+    (page_table + k)->pfn = get_free_frame(); //DETAIL: make sure we can get a free frame, should never happen but maybe put in assert staetment?
+    (page_table + k)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table + k)->uprot = (PROT_READ | PROT_WRITE);
+    k++;
+  }
 
-      /* Then the data and bss pages */
-			/*
-      >>>> For the next data_bss_npg number of PTEs in the Region 0
-      >>>> page table, initialize each PTE:
-      >>>>     valid = 1
-      >>>>     kprot = PROT_READ | PROT_WRITE
-      >>>>     uprot = PROT_READ | PROT_WRITE
-      >>>>     pfn   = a new page of physical memory
-			*/
+  // Update heap limit
+  (*pcb_p)->brk_index = k;
 
-			for (j = 0; j < data_bss_npg; j++) {
-				(page_table + k)->valid = PTE_VALID;
-				(page_table + k)->pfn = get_free_frame();
-				//STATMENT: I don't feel good about this
-				//assert((page_table + k)->pfn > 0)
-				(page_table + k)->kprot = (PROT_READ | PROT_WRITE);
-				(page_table + k)->uprot = (PROT_READ | PROT_WRITE);
-				k++;
-			}
-
-      // Update heap limit
-      (*pcb_p)->brk_index = k;
+  /* And finally the user stack pages */
+  // k should be equivalent to USER_STACK_BASE
+  // go from base to limit
+  // kprot to READ | WRITE
+  // uprot to READ | WRITE
+  k = get_page_index(USER_STACK_LIMIT) - stack_npg;
+  for (j = 0; j < stack_npg ; j++) {
+    (page_table + k)->valid = PTE_VALID;
+    (page_table + k)->pfn = get_free_frame();
+    (page_table + k)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table + k)->uprot = (PROT_READ | PROT_WRITE);
+    k++;
+  }
+  (*pcb_p)->stack_limit_index = k;
 
 
-      /* And finally the user stack pages */
-			/*
-      >>>> For stack_npg number of PTEs in the Region 0 page table
-      >>>> corresponding to the user stack (the last page of the
-			>>>> user stack *ends* at virtual address USER_STACK_LMIT),
-			>>>> initialize each PTE:
-      >>>>     valid = 1
-      >>>>     kprot = PROT_READ | PROT_WRITE
-      >>>>     uprot = PROT_READ | PROT_WRITE
-      >>>>     pfn   = a new page of physical memory
-			*/
-
-			// k should be equivalent to USER_STACK_BASE
-			k = get_page_index(USER_STACK_LIMIT) - stack_npg;
-			for (j = 0; j < stack_npg ; j++) {
-				(page_table + k)->valid = PTE_VALID;
-				(page_table + k)->pfn = get_free_frame();
-				(page_table + k)->kprot = (PROT_READ | PROT_WRITE);
-				(page_table + k)->uprot = (PROT_READ | PROT_WRITE);
-				k++;
-			}
-      (*pcb_p)->stack_limit_index = k;
-
-
-      /*
-       *  All pages for the new address space are now in place.  Flush
-       *  the TLB to get rid of all the old PTEs from this process, so
-       *  we'll be able to do the read() into the new pages below.
-       */
-      WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
+  /*
+   *  All pages for the new address space are now in place.  Flush
+   *  the TLB to get rid of all the old PTEs from this process, so
+   *  we'll be able to do the read() into the new pages below.
+   */
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 
   /*
    *  Read the text and data from the file into memory.
@@ -271,7 +235,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
     TracePrintf(0, "LoadProgram: couldn't read for '%s'\n", name);
     free(argbuf);
     close(fd);
-      return (-2);
+    return (-2);
   }
 
   close(fd);			/* we've read it all now */
@@ -281,18 +245,14 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
    *  and executable, but not writable.
    */
 
-		/*
-		>>>> For text_npg number of PTEs corresponding to the user text
-		>>>> pages, set each PTE's kprot to PROT_READ | PROT_EXEC.
-		*/
-			k = MEM_INVALID_PAGES;
-			for (j = 0; j < text_npg; j++) {
-				(page_table + k)->kprot = (PROT_READ | PROT_EXEC);
-				k++;
-			}
+  // set text to READ | EXEC
+  k = MEM_INVALID_PAGES;
+  for (j = 0; j < text_npg; j++) {
+    (page_table + k)->kprot = (PROT_READ | PROT_EXEC);
+    k++;
+  }
 
-
-    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 
   /*
    *  Zero out the bss
@@ -303,13 +263,13 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   /*
    *  Set the entry point in the exception frame.
    */
-  //>>>> Initialize pc for the current process to (void *)li.entry
-		frame->pc = (void *)li.entry;
+  //// initialize pc for current process
+  frame->pc = (void *)li.entry;
 
-    /*
-     *  Now, finally, build the argument list on the new stack.
-     */
-    *cpp++ = (char *)argcount;		/* the first value at cpp is argc */
+  /*
+   *  Now, finally, build the argument list on the new stack.
+   */
+  *cpp++ = (char *)argcount;		/* the first value at cpp is argc */
   cp2 = argbuf;
   for (i = 0; i < argcount; i++) {      /* copy each argument and set argv */
     *cpp++ = cp;
@@ -328,14 +288,11 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
    *  value for the PSR will make the process run in user mode,
    *  since this PSR value of 0 does not have the PSR_MODE bit set.
    */
-	/*
-  >>>> Initialize regs[0] through regs[NUM_REGS-1] for the
-    >>>> current process to 0.
-    >>>> Initialize psr for the current process to 0.
-		*/
-		for (j=0; j<NUM_REGS; j++) {
-			frame->regs[j] = 0;
-		}
-		frame->psr = 0;
-    return (0);
+  // initialize regs to zero
+  for (j=0; j<NUM_REGS; j++) {
+    frame->regs[j] = 0;
+  }
+  // initialize psr to 0
+  frame->psr = 0;
+  return (0);
 }

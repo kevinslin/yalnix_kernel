@@ -423,11 +423,11 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
  * Called to context switch into first program
  * Sets the current page table to be the page table of p1
  * @params:
- * ctxp - TODO
+ * ctxp - pointer to context of p1
  * p1 - pointer to pcb of first process
  * p2 - should always be NULL (DEPRECIATE(?))
  * @return:
- * ctxp - TODO
+ * ctxp - ctx of p2
  */
 SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   dprintf("in initswitchfunction...", 0);
@@ -437,7 +437,11 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
 
+  // debug
+  debug_pcb(p);
+  debug_page_table(page_table, 1);
   // Update current page table
+  dprintf("writing ptr0 reg...", 0);
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
 
   // flush out old entries
@@ -445,7 +449,6 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
     dprintf("flusing region0...", 0);
     WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   }
-
   return ctxp;
 }
 

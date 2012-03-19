@@ -195,7 +195,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   printf(DIVIDER);
   printf("pmem: %u\n", pmem_size);
   printf("free frames: %i\n", len_free_frames());
-  debug_frames();
   printf(DIVIDER);
   debug_page_table(page_table0_p, 1);
   debug_page_table(page_table1_p, 1);
@@ -244,10 +243,14 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   SavedContext *ctx = (SavedContext *)malloc(sizeof(SavedContext));
   pcb_idle->context = ctx;
 
+  // Set page table to initialized table
   pcb_idle->page_table_p = page_table0_p;
   pcb_current = pcb_idle;
 
-  ContextSwitch(initswitchfunction, pcb_idle->context, (void *)pcb_idle, NULL);
+  // Initialzed context
+  ContextSwitch(switchfunc_nop, pcb_idle->context, (void *)pcb_idle, NULL);
+
+  // Load the idle program
   dprintf("about to load idle...", 0);
   if(LoadProgram("idle", cmd_args, frame, &pcb_current) != 0) {
     unix_error("error loading program!");
@@ -258,10 +261,8 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   printf("finished loading program...\n");
   fflush(stdout);
 
-  dprintf("about to flush...", 0);
-  if (VM_ENABLED) {
-    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
-  }
+  // TMP(uneccessary)
+  WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0); // flush works fine here
 
   // Load init
   /******************************************/
@@ -303,6 +304,5 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   dprintf("finished loading init...", 0);
   fflush(stdout);
   dprintf("done starting kernel!", 0);
-  exit(1);
 }
 
