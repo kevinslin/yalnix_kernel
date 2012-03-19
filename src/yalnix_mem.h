@@ -72,7 +72,7 @@ void *KERNEL_HEAP_LIMIT;
 /* Page table stuff */
 struct pte *page_table0_p; // the current pagetable0
 
-/* ###################### Function Prototypes ################################ */
+/*######### Function Prototypes #########*/
 /* Debug functions*/
 void debug_page_table(struct pte *table, int verbosity);
 void debug_stack_frame(ExceptionStackFrame *frame);

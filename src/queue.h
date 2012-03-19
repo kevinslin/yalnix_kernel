@@ -9,6 +9,7 @@
 
 typedef struct node{
   struct node *next;
+  struct node *prev;
   void *value;
 } elem;
 
@@ -22,6 +23,7 @@ typedef struct q{
 queue *create_queue();
 int enqueue(queue *q, void *value);
 elem *dequeue(queue *q);
+void *pop(queue *q, void *value);
 void debug_queue(queue *q);
 
 #endif

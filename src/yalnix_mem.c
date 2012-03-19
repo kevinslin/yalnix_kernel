@@ -83,7 +83,7 @@ void debug_pcb(struct pcb *pcb_p) {
   /*char *name; //for debugging purposes*/
 }
 
-/* ###################### Frame Functions ################################ */
+/*######### Frame Functions #########*/
 /*
  * Malloc frames and set all to free
  */
@@ -139,13 +139,18 @@ get_free_frame() {
 }
 
 
-/* ###################### Page Functions ################################ */
+/*######### Page Tables  #########*/
 /*
  * Create page table
  */
 struct pte *create_page_table() {
   struct pte *page_table = (struct pte *)malloc(sizeof(struct pte) * PAGE_TABLE_LEN);
   if (page_table == NULL) return NULL;
+
+  /*struct pte page_table = struct pte page_table[PAGE_TABLE_LEN];*/
+  /*int frame = get_free_frame();*/
+  /*pcb_p->page_table0 = get_address_from_index(frame);*/
+
   if (0 > reset_page_table(page_table)) return NULL;
   return page_table;
 }
@@ -218,7 +223,7 @@ struct pte *reset_page_table_limited(struct pte *page_table) {
   return page_table;
 }
 
-/* ###################### PCB Functions ################################ */
+/*######### PCB #########*/
 /*
  * Create pcb
  */
