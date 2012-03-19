@@ -1,0 +1,22 @@
+These sample Yalnix user programs are for your enjoyment in testing
+your Yalnix kernel.  Some of the sample programs print out messages
+(e.g., either with printf and/or TracePrintf) explaining some of what
+they are doing, but in all cases, the best description of what each
+sample program does is the source code for each.  If you have any
+questions about any of the sample programs after reading the source
+code, let us know.
+
+One note of explanation on three of the sample programs:
+
+ - init
+ - console
+ - shell
+
+These three programs go together.  The "init" program can be used as
+your kernel's init program, which then starts the "console" program
+on TTY_CONSOLE and starts "shell" on each other terminal.  The shell
+program acts (in a simple way) like a familiar shell.  When the
+shell program exits, init collects that process's exit status and
+starts a new shell on that same terminal.  When the console process
+exits, the init process collects that process's exit status and
+Halts Yalnix.

@@ -19,6 +19,7 @@
 
 #define MAX_CHILDREN 5
 
+#define STATUS_NONE 0
 #define STATUS_RUNNING 1
 #define STATUS_WAIT 2
 #define STATUS_ZOMBIE 3

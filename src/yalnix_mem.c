@@ -220,35 +220,26 @@ struct pte *reset_page_table_limited(struct pte *page_table) {
 
 /* ###################### PCB Functions ################################ */
 /*
- * Malloc pcb space
+ * Create pcb
  */
 struct pcb *create_pcb(struct pcb *parent) {
   struct pcb *pcb_p;
-  /*struct pte *page_table;*/
 
   // Initiate pcb
   pcb_p = (struct pcb *)malloc(sizeof(struct pcb));
-  if (pcb_p == NULL) {
-    unix_error("error creating pcb");
-  }
+  if (pcb_p == NULL) unix_error("error creating pcb");
 
-  // Initiate page table
-  /*page_table = create_page_table();*/
-  /*if (NULL == page_table) unix_error("error creating page table!");*/
-  /*page_table = init_page_table0(page_table);*/
-  /*pcb_p->page_table_p = page_table;*/
-
+  // Set children queues
   pcb_p->children_active = create_queue();
   pcb_p->children_wait = create_queue();
   if (parent != NULL) {
     //TODO: check to make sure pcb_p gets modifications
     enqueue(parent->children_active, pcb_p);
   }
-
-  pcb_p->pid = get_next_pid(); //DETAIL (make sure this doesn't overflow...)
+  pcb_p->pid = get_next_pid();
   pcb_p->time_current = 0;
   pcb_p->time_delay = 0;
-  pcb_p->status = 0;
+  pcb_p->status = STATUS_NONE;
   pcb_p->parent = parent;
   pcb_p->frame = NULL;
   pcb_p->pc_next = NULL;
@@ -259,9 +250,9 @@ struct pcb *create_pcb(struct pcb *parent) {
 
 /*
  * Free pcb structure
+ * Don't free page tables, they are free'd in terminate_page_table
  */
 int free_pcb(struct pcb *pcb_p) {
-  /*free(pcb_p->page_table_p);*/
   free(pcb_p->children_wait);
   free(pcb_p->children_active); //TODO: free elemetns in queue
   free(pcb_p->context);
@@ -270,7 +261,7 @@ int free_pcb(struct pcb *pcb_p) {
 }
 
 /*
- *
+ * Detroy pcb and update book keeping information
  */
 struct pte *terminate_pcb(struct pcb *pcb_p) {
   dprintf("in terminate_pcb...", 0);
