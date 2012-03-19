@@ -28,7 +28,7 @@
 #define TTY_BUSY 1
 
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
-#define get_page_mem(page_index) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
+#define get_page_mem(page_index) ((void *)(page_index * PAGESIZE))
 
 /* Structs */
 typedef struct {
@@ -46,6 +46,7 @@ struct pcb{
   int stack_limit_index;
   SavedContext *context;
   struct pte *page_table_p;
+  struct pte *page_table_p_physical;
   struct pcb *parent;
   queue *children_active;
   queue *children_wait;
@@ -75,6 +76,8 @@ int tty_busy[NUM_TERMINALS];
 /* Etc */
 bool VM_ENABLED;
 
+
+
 /* Pcb stuff */
 struct pcb *pcb_current;
 struct pcb *pcb_idle;
@@ -85,7 +88,7 @@ page_frames *frames_p;
 void *KERNEL_HEAP_LIMIT;
 
 /* Page table stuff */
-struct pte *page_table0_p; // the current pagetable0
+//struct pte *page_table0_p; // the current pagetable0
 
 /*######### Function Prototypes #########*/
 /* Debug functions*/
@@ -101,9 +104,9 @@ int len_free_frames();
 int get_free_frame();
 
 /* Page Functions */
-struct pte *create_page_table();
+struct pte *create_page_table(struct pcb *p);
 struct pte *init_page_table0(struct pte *page_table);
-struct pte *clone_page_table(struct pte *src);
+struct pte *clone_page_table(struct pte *src, struct pte **dst);
 struct pte *reset_page_table(struct pte *page_table);
 struct pte *reset_page_table_limited(struct pte *page_table);
 int free_page_table(struct pte *page_table);

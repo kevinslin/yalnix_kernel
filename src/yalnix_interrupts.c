@@ -160,6 +160,7 @@ void interrupt_tty_receive(ExceptionStackFrame *frame){
 }
 
 void interrupt_tty_transmit(ExceptionStackFrame *frame){
+  dprintf("in interrupt_tty_transmit...", 0);
   stream *stream_write;
   stream *stream_tmp;
   struct pcb *pcb_p;

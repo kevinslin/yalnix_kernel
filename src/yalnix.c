@@ -102,6 +102,8 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   int num_frames;
   int kernel_heap_limit_index;
   int kernel_text_limit_index;
+  struct pte page_table0[NUM_FRAMES];
+  struct pte *page_table0_p;
 
   /* TMP */
   args_copy = cmd_args; //TODO: hack!
@@ -109,13 +111,14 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   /* Get memory size*/
   num_frames = pmem_size / PAGESIZE;
   assert(num_frames > 0); // silly...
+
   // keep track of current kernel heap in global var
   KERNEL_HEAP_LIMIT = orig_brk;
 
-  /* Frames, tables, etc.*/
+  /* Create physical frames */
   initialize_frames(num_frames);
-  page_table0_p = create_page_table();
-  assert(page_table0_p != NULL);
+  page_table0_p = (struct pte *)malloc(sizeof(struct pte) * PAGE_TABLE_LEN);
+
   // create process queues
   p_ready = create_queue();
   p_waiting = create_queue();
@@ -233,11 +236,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   pcb_idle->frame = frame;
   pcb_idle->name = "idle process";
 
-  // Initiate page table
-  /*idle_page_table = create_page_table();*/
-  /*if (NULL == idle_page_table) unix_error("error creating page table!");*/
-  /*idle_page_table = init_page_table0(idle_page_table);*/
-  /*pcb_idle->page_table_p = idle_page_table;*/
 
   // Saved context
   SavedContext *ctx = (SavedContext *)malloc(sizeof(SavedContext));
@@ -278,10 +276,22 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   // Initiate page table
   dprintf("creating page tables for init...", 0);
-  init_page_table = create_page_table();
+  init_page_table = create_page_table(pcb_init);
+  debug_pcb(pcb_init);
+
+  pcb_init->page_table_p->valid = PTE_VALID;
+  pcb_init->page_table_p->pfn = get_page_index(pcb_init->page_table_p_physical);
+  pcb_init->page_table_p->kprot = (PROT_READ | PROT_WRITE);
+  pcb_init->page_table_p->uprot = (PROT_READ | PROT_WRITE);
+  dprintf("finished creating page tables for init...", 0);
+
   if (NULL == init_page_table) unix_error("error creating page table!");
+  debug_page_table(page_table1_p, 1);
+  printf("init page table: %p\n", init_page_table);
+  printf("pcb page table physical : %p\n", pcb_init->page_table_p_physical);
+  reset_page_table(init_page_table);
   init_page_table = init_page_table0(init_page_table);
-  pcb_init->page_table_p = init_page_table;
+  /*pcb_init->page_table_p = init_page_table;*/
 
   // Saved context
   SavedContext *ctx_init = (SavedContext *)malloc(sizeof(SavedContext));

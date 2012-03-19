@@ -2,10 +2,12 @@
 
 
 extern void start_idle();
+extern struct pte *page_table1_p;
 
 /* Globals */
 // incremented every time a new process is started
 int PID = 0;
+struct pte pte_null = {0, 0, 0, 0, 0};
 
 /* Debug functions */
 void
@@ -57,11 +59,16 @@ debug_frames(int verbosity) {
 }
 
 void debug_pcb(struct pcb *pcb_p) {
+  printf(DIVIDER);
   printf("dumping pcb...\n");
+  debug_page_table(pcb_p->page_table_p, 1);
   printf("pid: %i\n", pcb_p->pid);
   printf("brk index: %i\n", pcb_p->brk_index);
   printf("stack limit index: %i\n", pcb_p->stack_limit_index);
+  printf("pte virtual: %p\n", pcb_p->page_table_p);
+  printf("pte physical: %p\n", pcb_p->page_table_p_physical);
   printf("name: %s\n", pcb_p->name);
+  printf(DIVIDER);
 /*struct pcb{*/
   /*unsigned int pid;*/
   /*unsigned int time_current;*/
@@ -143,16 +150,18 @@ get_free_frame() {
 /*
  * Create page table
  */
-struct pte *create_page_table() {
-  struct pte *page_table = (struct pte *)malloc(sizeof(struct pte) * PAGE_TABLE_LEN);
-  if (page_table == NULL) return NULL;
-
-  /*struct pte page_table = struct pte page_table[PAGE_TABLE_LEN];*/
-  /*int frame = get_free_frame();*/
-  /*pcb_p->page_table0 = get_address_from_index(frame);*/
-
-  if (0 > reset_page_table(page_table)) return NULL;
-  return page_table;
+struct pte *create_page_table(struct pcb *p) {
+  // find free frame for page table
+  int frame = get_free_frame();
+  if (0 > get_free_frame) return NULL;
+  // book keeping
+  set_frame(frame, FRAME_NOT_FREE);
+  // store physical address of pte in pcb
+  p->page_table_p_physical = get_page_mem(frame);
+  p->page_table_p = (page_table1_p + PAGE_TABLE_LEN) - 2;
+  // reset page talbe
+  /*if (0 > reset_page_table(p->page_table_p)) return NULL;*/
+  return p->page_table_p;
 }
 
 /*
@@ -177,16 +186,15 @@ struct pte *init_page_table0(struct pte *page_table) {
  * Clone pt2 into pt1
  * Mallocs room for new page table TODO: possible memory leak
  */
-struct pte *clone_page_table(struct pte *src) {
+struct pte *clone_page_table(struct pte *src, struct pte **dest) {
   int i;
-  struct pte *dest = create_page_table();
   for (i=0; i<PAGE_TABLE_LEN; i++) {
-    (dest + i)->pfn = (src + i)->pfn;
-    (dest + i)->valid = (src +i)->valid;
-    (dest + i)->uprot = (src +i)->uprot;
-    (dest + i)->kprot = (src +i)->kprot;
+    (*dest + i)->pfn = (src + i)->pfn;
+    (*dest + i)->valid = (src +i)->valid;
+    (*dest + i)->uprot = (src +i)->uprot;
+    (*dest + i)->kprot = (src +i)->kprot;
   }
-  return dest;
+  return *dest;
 }
 
 /*
@@ -197,11 +205,20 @@ struct pte *reset_page_table(struct pte *page_table) {
   int i;
   for (i=0; i<PAGE_TABLE_LEN; i++) {
     // if page was valid, free the frame
-    if ((page_table + i)->valid == PTE_VALID) set_frame((page_table + i)->pfn, FRAME_FREE);
+    printf("i:%i, mem: %p\n", i, page_table + i);
+    printf("before: 0x%x\n", *(page_table + i));
+    *(page_table + i) = pte_null;
+    printf("after reset: 0x%x\n", *(page_table + i));
+    if ((page_table + i)->valid == PTE_VALID) {
+      printf("page table reset");
+      set_frame((page_table + i)->pfn, FRAME_FREE);
+    }
     (page_table + i)->pfn = PFN_INVALID;
     (page_table + i)->valid = PTE_INVALID;
     (page_table + i)->uprot = PROT_NONE;
     (page_table + i)->kprot = PROT_NONE;
+    printf("after initialization: 0x%x\n", *(page_table + i));
+    /*printf("after: %p\n", (void *) page_table + i);*/
   }
   return page_table;
 }
@@ -344,7 +361,7 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
   struct pcb *child = p2;
   struct pte *parent_table = (parent->page_table_p);
   struct pte *child_table = (child->page_table_p);
-  child_table = clone_page_table(parent_table);
+  clone_page_table(parent_table, &child_table);
   return ctxp;
 }
 
@@ -446,6 +463,7 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   // Get page table
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
+  page_table = init_page_table0(page_table);
 
   // debug
   debug_pcb(p);
