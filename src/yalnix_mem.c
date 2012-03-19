@@ -10,13 +10,14 @@ int PID = 0;
 void
 debug_page_table(struct pte *table, int verbosity) {
   int i;
+  // if verbosity set, dump out contents of entire page talbe
   if (verbosity) {
     for (i=0; i<PAGE_TABLE_LEN; i++) {
-      printf("i:%i, pfn: %u, valid: %u\n", i, (table + i)->pfn, (table + i)->valid);
+      printf("mem: %p, i:%i, pfn: %u, valid: %u, uprot: %x,  kprot: %x\n", table + i, i, (table + i)->pfn, (table + i)->valid, (table + i)->uprot, (table + i)->kprot);
     }
   } // end verbosity
   printf("start address: %p\n", table);
-  printf("end address: %p\n", table + PAGE_TABLE_LEN);
+  printf("end address: %p\n", table + PAGE_TABLE_LEN - 1);
 }
 
 // Debug stack frame
@@ -188,7 +189,12 @@ struct pte *clone_page_table(struct pte *src) {
   return dest;
 }
 
+/*
+ * Set's everything to invalid
+ * NOTES: tested
+ */
 struct pte *reset_page_table(struct pte *page_table) {
+  dprintf("in reset_page_table", 0);
   int i;
   for (i=0; i<PAGE_TABLE_LEN; i++) {
     (page_table + i)->pfn = PFN_INVALID;
@@ -414,7 +420,14 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
 }
 
 /*
- *  TODO:
+ * Called to context switch into first program
+ * Sets the current page table to be the page table of p1
+ * @params:
+ * ctxp - TODO
+ * p1 - pointer to pcb of first process
+ * p2 - should always be NULL (DEPRECIATE(?))
+ * @return:
+ * ctxp - TODO
  */
 SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   dprintf("in initswitchfunction...", 0);
@@ -427,6 +440,7 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   // Update current page table
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
 
+  // flush out old entries
   if (VM_ENABLED) {
     dprintf("flusing region0...", 0);
     WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
