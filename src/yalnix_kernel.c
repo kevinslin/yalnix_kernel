@@ -1,6 +1,7 @@
 #include <comp421/hardware.h>
 #include <comp421/yalnix.h>
 #include "yalnix_mem.h"
+#include <string.h>
 
 extern void start_idle(ExceptionStackFrame *frame);
 /*
@@ -105,7 +106,6 @@ int Fork(){
  * Wait for children to finish
  */
 int Wait(int *status) {
-	elem *e;
 	struct pcb * p;
 	unsigned int pid;
 
@@ -120,13 +120,75 @@ int Wait(int *status) {
 		enqueue(p_waiting, (void *) pcb_current);
 		get_next_ready_process(pcb_current->page_table_p);
 	}
-	e = dequeue(pcb_current->children_wait);
 	// get status of children
-	p = (struct pcb *) e;
+	p = (struct pcb *)dequeue(pcb_current->children_wait);
 	pid = p->pid;
 	status = &p->status;
   free_pcb(p);
 	return pid;
+}
+
+/*
+ * Reads length chars from stream into buf of terminal id
+ */
+int TtyRead(int id, void *buf, int length) {
+	stream *s;
+	int length_diff;
+	// no lines ready to read
+	while (0 == tty_read[id]->len) {
+		enqueue(tty_read_wait[id], pcb_current);
+		get_next_ready_process(pcb_current->page_table_p);
+	}
+	// something's ready to read
+	s = (stream *)dequeue(tty_read[id]);
+
+	length_diff = length - s->length;
+	// read everything
+	if (0 <= length_diff) {
+		length = s->length;
+	}
+	memcpy(buf, s->buf, length);
+	if (0 <= length_diff) {
+		memmove(s->buf, s->buf + length, length_diff);
+		s->length = length_diff;
+		//TODO: put at front of queue
+	} else {
+		// we're done reading
+		free(s->buf);
+		free(s);
+	}
+	return length;
+}
+
+/*
+ * Writes length chars from buf into terminal id
+ */
+int TtyWrite(int id, void *buf, int length) {
+	void *buf_tmp;
+	stream *s;
+	// error checking
+	if ( (0 > id) || (NUM_TERMINALS <= id)) return ERROR;
+	if (0 > length) return ERROR;
+	//TODO: check buffer
+
+	buf_tmp = malloc(length);
+	if (NULL == buf_tmp) return ERROR;
+	s = malloc(sizeof(stream));
+	if (NULL == s) return ERROR;
+
+	s->length = length;
+	s->buf = buf_tmp;
+	memcpy(s->buf, buf, length);
+
+	// make sure terminal is not busy
+	if (TTY_BUSY != tty_busy[id]) {
+		tty_busy[id] = TTY_BUSY;
+		TtyTransmit(id, s->buf, s->length);
+	}
+	enqueue(tty_write[id], s);
+	enqueue(tty_write_wait[id], pcb_current);
+	get_next_ready_process(pcb_current->page_table_p);
+	return s->length;
 }
 
 /*

@@ -316,7 +316,20 @@ struct pcb *Create_pcb(struct pcb *parent) {
   return a_pcb;
 }
 
-/* ###################### Misc Functions ################################ */
+/*######### Terminals #########*/
+
+void initialize_terminals() {
+  int i;
+  for (i=0; i<NUM_TERMINALS; i++) {
+    tty_read[i] = create_queue();
+    tty_write[i] = create_queue();
+    tty_read_wait[i] = create_queue();
+    tty_write_wait[i] = create_queue();
+    tty_busy[i] = TTY_FREE;
+  }
+}
+
+/*######### Misc Functions #########*/
 int get_next_pid() {
   return ++PID;
 }

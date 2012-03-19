@@ -24,9 +24,13 @@
 #define STATUS_WAIT 2
 #define STATUS_ZOMBIE 3
 
+#define TTY_FREE 0
+#define TTY_BUSY 1
+
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
 #define get_page_mem(page_index) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
 
+/* Structs */
 typedef struct {
   int free;
 } page_frames;
@@ -52,10 +56,21 @@ struct pcb{
   char *name; //for debugging purposes
 };
 
+typedef struct _stream {
+  int length;
+  void *buf;
+} stream;
+
 /* Queues */
 queue *p_ready;
 queue *p_waiting;
 queue *p_delay;
+
+queue *tty_read[NUM_TERMINALS];
+queue *tty_write[NUM_TERMINALS];
+queue *tty_read_wait[NUM_TERMINALS];
+queue *tty_write_wait[NUM_TERMINALS];
+int tty_busy[NUM_TERMINALS];
 
 /* Etc */
 bool VM_ENABLED;
@@ -98,6 +113,10 @@ struct pcb *Create_pcb(struct pcb *parent);
 struct pcb *create_pcb(struct pcb *parent);
 int free_pcb(struct pcb *pcb_p);
 struct pte *terminate_pcb(struct pcb *pcb_p);
+
+/* Terminals */
+void initialize_terminals();
+
 /* Context switch funcs */
 SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2 );

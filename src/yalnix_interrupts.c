@@ -8,6 +8,8 @@
 #define YALNIX_GETPID           5
 #define	YALNIX_BRK		6
 #define	YALNIX_DELAY		7
+#define	YALNIX_TTY_READ		21
+#define	YALNIX_TTY_WRITE	22
 */
 extern void start_idle(ExceptionStackFrame *frame);
 
@@ -40,10 +42,16 @@ interrupt_kernel(ExceptionStackFrame *frame) {
 			printf("syscall getting brk...\n");
 			break;
 		case YALNIX_DELAY:
-      dprintf("syscall delay", 0);
+      dprintf("syscall delay...", 0);
 			is_valid = Delay(frame->regs[1]);
       frame->regs[0] = is_valid;
 			break;
+    case YALNIX_TTY_READ:
+      dprintf("sycall tty read...", 0);
+      break;
+    case YALNIX_TTY_WRITE:
+      dprintf("syscall tty_write...", 0);
+      break;
 		default:
 			printf("got unknown system call!\n");
 	}
@@ -131,10 +139,51 @@ void interrupt_memory(ExceptionStackFrame *frame){
 void interrupt_math(ExceptionStackFrame *frame){
   kernel_error("illegal math operation", frame);
 }
+
 void interrupt_tty_receive(ExceptionStackFrame *frame){
+  dprintf("got tty receive...", 0);
+  stream *stream_read = (stream *)malloc(sizeof(stream));
+  void *buf = malloc(TERMINAL_MAX_LINE);
+  struct pcb *pcb_p;
+
+  if (NULL == stream_read) Exit(ERROR);
+  if (NULL == buf) Exit(ERROR);
+
+  stream_read->buf = buf;
+  stream_read->length = TtyReceive(frame->code, stream_read->buf, TERMINAL_MAX_LINE);
+  enqueue(tty_read[frame->code], (void *)stream_read);
+
+  if (0 < tty_read_wait[frame->code]->len) {
+    pcb_p = (struct pcb *)dequeue(tty_read_wait[frame->code]);
+    enqueue(p_ready, (void *)pcb_p);
+  }
 }
+
 void interrupt_tty_transmit(ExceptionStackFrame *frame){
+  stream *stream_write;
+  stream *stream_tmp;
+  struct pcb *pcb_p;
+  int id;
+
+  id = frame->code;
+  stream_write = (stream *)dequeue(tty_write[id]);
+  free(stream_write->buf);
+  free(stream_write);
+
+  assert(0 < tty_write_wait[id]->len);
+  pcb_p = (struct pcb *)dequeue(tty_write_wait[id]);
+  tty_busy[id] = TTY_FREE;
+  enqueue(p_ready, pcb_p);
+
+  // are any other lines that need to be written?
+  if (0 < tty_write[id]->len) {
+    stream_tmp = ((stream *)tty_write[id]->head);
+    tty_busy[id] = TTY_BUSY;
+    TtyTransmit(id, stream_tmp->buf, stream_tmp->length);
+  }
+
 }
+
 void interrupt_disk(ExceptionStackFrame *frame){
   kernel_error("illegal disk access", frame);
 }
