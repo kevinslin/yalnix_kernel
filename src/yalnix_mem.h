@@ -40,7 +40,6 @@ struct pcb{
   void *stack_limit; // DEPRECIATE?
   int stack_limit_index;
   SavedContext *context;
-  //struct pte page_table[PAGE_TABLE_LEN]; //depreciate?
   struct pte *page_table_p;
   struct pcb *parent;
   queue *children_active;
@@ -72,6 +71,13 @@ void *KERNEL_HEAP_LIMIT;
 /* Page table stuff */
 struct pte *page_table0_p; // the current pagetable0
 
+/* ###################### Function Prototypes ################################ */
+/* Debug functions*/
+void debug_page_table(struct pte *table, int verbosity);
+void debug_stack_frame(ExceptionStackFrame *frame);
+void debug_frames();
+void debug_pcb(struct pcb *pcb_p);
+
 /* Frame Functions */
 int initialize_frames(int num_frames);
 int set_frame(int index, int status);
@@ -91,13 +97,6 @@ struct pcb *Create_pcb(struct pcb *parent);
 struct pcb *create_pcb(struct pcb *parent);
 int free_pcb(struct pcb *pcb_p);
 struct pte *terminate_pcb(struct pcb *pcb_p);
-
-/* Debug functions*/
-void debug_page_table(struct pte *table, int verbosity);
-void debug_stack_frame(ExceptionStackFrame *frame);
-void debug_frames();
-void debug_pcb(struct pcb *pcb_p);
-
 /* Context switch funcs */
 SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2 );

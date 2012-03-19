@@ -4,6 +4,7 @@
 extern void start_idle();
 
 /* Globals */
+// incremented every time a new process is started
 int PID = 0;
 
 /* Debug functions */
@@ -82,26 +83,19 @@ void debug_pcb(struct pcb *pcb_p) {
   /*char *name; //for debugging purposes*/
 }
 
-/* Misc Functions */
-int get_next_pid() {
-  return ++PID;
-}
-
-/* Frame Functions */
+/* ###################### Frame Functions ################################ */
 /*
- * Initialize all frames to free.
+ * Malloc frames and set all to free
  */
 int
 initialize_frames(int num_frames) {
-	NUM_FRAMES = num_frames;
 	int i;
-	//page_frames frames[NUM_FRAMES];
+  // set global NUM_FRAMES variable
+	NUM_FRAMES = num_frames;
+  // malloc frames
 	frames_p = (page_frames *)malloc( sizeof(page_frames) * NUM_FRAMES );
-	// Error mallocing memory
-	if (frames_p == NULL) {
-		return -1;
-	}
-	//*frames_p = page_frames frames[NUM_FRAMES];
+	if (frames_p == NULL) unix_error("can't malloc frames");
+  // set all to free
   for (i=0; i<NUM_FRAMES; i++) {
 		(*(frames_p + i)).free = FRAME_FREE;
   }
@@ -132,7 +126,8 @@ len_free_frames() {
  * We the index of the next available free farme.
  * -1 if there are no free frames
  */
-int get_free_frame() {
+int
+get_free_frame() {
   int i;
 	for (i=0; i<NUM_FRAMES; i++) {
 		if ((*(frames_p + i)).free == FRAME_FREE) {
@@ -143,22 +138,21 @@ int get_free_frame() {
   return -1;
 }
 
+
+/* ###################### Page Functions ################################ */
 /*
- * Create a page table with no valid page tables
+ * Create page table
  */
 struct pte *create_page_table() {
-  /*struct pte page_table[PAGE_TABLE_LEN];*/
   struct pte *page_table = (struct pte *)malloc(sizeof(struct pte) * PAGE_TABLE_LEN);
-  if (page_table == NULL) {
-    return NULL;
-  }
-  if (0 > reset_page_table(page_table)) {
-    return NULL;
-  }
+  if (page_table == NULL) return NULL;
+  if (0 > reset_page_table(page_table)) return NULL;
   return page_table;
 }
+
 /*
- * Set region 0 kernel stack to valid
+ * Initialize a region0 page table
+ * Set all entries to invalid except kernel stack
  */
 struct pte *init_page_table0(struct pte *page_table) {
   int i;
@@ -176,6 +170,7 @@ struct pte *init_page_table0(struct pte *page_table) {
 
 /*
  * Clone pt2 into pt1
+ * Mallocs room for new page table TODO: possible memory leak
  */
 struct pte *clone_page_table(struct pte *src) {
   int i;
@@ -190,13 +185,14 @@ struct pte *clone_page_table(struct pte *src) {
 }
 
 /*
- * Set's everything to invalid
- * NOTES: tested
+ * Sets everything to invalid
  */
 struct pte *reset_page_table(struct pte *page_table) {
   dprintf("in reset_page_table", 0);
   int i;
   for (i=0; i<PAGE_TABLE_LEN; i++) {
+    // if page was valid, free the frame
+    if ((page_table + i)->valid == PTE_VALID) set_frame((page_table + i)->pfn, FRAME_FREE);
     (page_table + i)->pfn = PFN_INVALID;
     (page_table + i)->valid = PTE_INVALID;
     (page_table + i)->uprot = PROT_NONE;
@@ -206,15 +202,14 @@ struct pte *reset_page_table(struct pte *page_table) {
 }
 
 /*
- * Reset page tables but keep kernel heap
+ * Like reset page table but keep the kernel stack
  * Set all frames pointed to by page table to free
  */
 struct pte *reset_page_table_limited(struct pte *page_table) {
   int i;
   for (i=0; i<get_page_index(KERNEL_STACK_BASE); i++) {
-    if ((page_table + i)->valid == PTE_VALID) {
-      set_frame((page_table + i)->pfn, FRAME_FREE);
-    }
+    // if page was valid, free the frame
+    if ((page_table + i)->valid == PTE_VALID) set_frame((page_table + i)->pfn, FRAME_FREE);
     (page_table + i)->pfn = PFN_INVALID;
     (page_table + i)->valid = PTE_INVALID;
     (page_table + i)->uprot = PROT_NONE;
@@ -223,6 +218,7 @@ struct pte *reset_page_table_limited(struct pte *page_table) {
   return page_table;
 }
 
+/* ###################### PCB Functions ################################ */
 /*
  * Malloc pcb space
  */
@@ -324,7 +320,12 @@ struct pcb *Create_pcb(struct pcb *parent) {
   return a_pcb;
 }
 
-/* Switching functions */
+/* ###################### Misc Functions ################################ */
+int get_next_pid() {
+  return ++PID;
+}
+
+/* ###################### Switching Functions ################################ */
 
 /*
  * Context switch from fork
