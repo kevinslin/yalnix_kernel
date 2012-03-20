@@ -196,6 +196,10 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   // Initialize kernel stack of pt 0 to valid
   page_table0_p = create_page_table();
   page_table0_p = init_page_table0(page_table0_p);
+  clone_page_table(page_table0_p, &page_table0_kernel);
+  debug_page_table(page_table0_p, 1);
+  debug_page_table(page_table0_kernel, 1);
+  exit(1);
 
   /* Debug region values*/
   printf(DIVIDER);

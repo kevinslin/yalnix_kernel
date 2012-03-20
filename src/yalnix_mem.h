@@ -80,6 +80,7 @@ int tty_busy[NUM_TERMINALS];
 bool VM_ENABLED;
 long page_brk;
 struct pte *page_table0_p; // points to current region0 table
+struct pte *page_table0_kernel; // points to current region0 table
 bool IDLE_CREATED;
 SavedContext *ctx_idle;
 ExceptionStackFrame *frame_idle;
@@ -96,8 +97,6 @@ int NUM_FRAMES; /* number of frames, obtained by dividing pmem_size / pagesize *
 page_frames *frames_p;
 void *KERNEL_HEAP_LIMIT;
 
-/* Page table stuff */
-//struct pte *page_table0_p; // the current pagetable0
 
 /*######### Function Prototypes #########*/
 /* Debug functions*/

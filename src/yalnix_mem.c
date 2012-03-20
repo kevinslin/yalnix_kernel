@@ -393,7 +393,7 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   }
   dprintf("about to copy kernel stack...", 0);
   // copy kernel stack
-  for(i=kernel_base; i<=kernel_limit; i++) {
+  for(i=kernel_base; i<kernel_limit; i++) {
     printf("i:%i\n", i);
     (page_table + i)->valid = (page_table0_p + i)->valid;
     (page_table + i)->pfn = get_free_frame();
@@ -408,15 +408,10 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
     WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (PAGEMASK2 * PAGESIZE));
     printf("check!\n");
 
-
-    printf("pfn: %x\n", pte_mask.pfn);
     void *src = (void *)((((long)(page_table0_p + i) * PAGESIZE) & PAGEMASK3) >> 12);
-    void *src2 = (void *)(((long)(page_table0_p + i) & pte_mask.pfn) << 9);
     void *dst = ((long)(VMEM_1_BASE + (PAGEMASK2 * PAGESIZE)));
     printf("src is: %p\n", src);
-    printf("src2 is: %p\n", src2);
     printf("dst is: %p\n", dst);
-
     memcpy(dst, src , PAGESIZE);
 
     printf("check2!\n");
@@ -431,9 +426,10 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   }
   /*debug_page_table(page_table,1);*/
   // update registers & flush
-  /*page_table0_p = page_table;*/
-  /*WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);*/
-  /*WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);*/
+  dprintf("about to write register pointers...", 1);
+  page_table0_p = page_table;
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
+  WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   return p->context;
 }
 
@@ -496,6 +492,10 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   // update registers & flush
   dprintf("about to update ptr0...", 0);
   page_table0_p = p2->page_table_p;
+
+  debug_page_table(page_table, 1);
+  debug_page_table(page_table0_p, 1);
+
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   //TODO: not sure if this is right
@@ -582,6 +582,7 @@ void get_next_ready_process(struct pte *page_table) {
       /*debug_frames(0);*/
       // Initialzed context but don't actually context switch
       if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL)) unix_error("bad context switch!");
+      if(LoadProgram("idle", cmd_args_idle, frame_idle, &pcb_idle) != 0) unix_error("error loading program!");
       dprintf("finished initializing idle...", 0);
     }
 
@@ -611,10 +612,10 @@ void get_next_ready_process(struct pte *page_table) {
     }
     // finished context switching, now set the current pcb to idle to complete the switch
     dprintf("activating pcb of idle...", 1);
-    if (!IDLE_CREATED) {
-      if(LoadProgram("idle", cmd_args_idle, frame_idle, &pcb_idle) != 0) unix_error("error loading program!");
-      IDLE_CREATED = true;
-    }
+    /*if (!IDLE_CREATED) {*/
+      /*if(LoadProgram("idle", cmd_args_idle, frame_idle, &pcb_idle) != 0) unix_error("error loading program!");*/
+      /*IDLE_CREATED = true;*/
+    /*}*/
     pcb_current = pcb_idle;
   } else {
     // there is a process waiting to run so run that instead of idle
