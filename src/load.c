@@ -94,6 +94,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
    *  Now save the arguments in a separate buffer in Region 1, since
    *  we are about to delete all of Region 0.
    */
+  dprintf("saving args to separate buffer in region0...", 0);
   cp = argbuf = (char *)malloc(size);
   for (i = 0; args[i] != NULL; i++) {
     strcpy(cp, args[i]);
@@ -125,6 +126,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   /*
    *  Make sure we will leave at least one page between heap and stack
    */
+  dprintf("check if program can fit inside virtual memory...", 0);
   if (MEM_INVALID_PAGES + text_npg + data_bss_npg + stack_npg + 1 + KERNEL_STACK_PAGES >= PAGE_TABLE_LEN) {
     TracePrintf(0, "LoadProgram: program '%s' size too large for VM\n",
         name);

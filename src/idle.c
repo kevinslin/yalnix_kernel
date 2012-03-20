@@ -5,7 +5,6 @@
 int
 main() {
   for (;;){
-    printf("idling...");
     /*Pause();*/
   }
   return 1;

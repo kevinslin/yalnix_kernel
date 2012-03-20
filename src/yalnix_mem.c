@@ -379,17 +379,11 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
   // save context
-  /*memcpy(p->context, ctxp, sizeof(SavedContext));*/
-  *(p->context) = *ctxp;
+  memcpy(p->context, ctxp, sizeof(SavedContext));
+  //*(p->context) = *ctxp;
   page_table = p->page_table_p;
 
   clone_page_table_alt(page_table, page_table0_p);
-
-  printf("idle process..\n");
-  debug_page_table(page_table, 0);
-  printf("current process..\n");
-  debug_page_table(page_table0_p, 0);
-  debug_pcb(p);
 
   // update registers & flush
   dprintf("about to write register pointers...", 1);
@@ -418,7 +412,6 @@ SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
   page_table = p->page_table_p; // should be a completely reset page table
 
   extract_page_table(page_table, page_table0_p);
-  debug_page_table(page_table,0);
 
   // Update register & flush
   page_table0_p = page_table;
@@ -520,7 +513,7 @@ void get_next_ready_process(struct pte *page_table) {
     dprintf("activating pcb of idle...", 1);
     if (!IDLE_CREATED) {
       dprintf("loading idle for first time...", 1);
-      if(LoadProgram("idle", cmd_args_idle, frame_idle, &pcb_idle) != 0) unix_error("error loading program!");
+      if(LoadProgram("idle", args_copy, frame_idle, &pcb_idle) != 0) unix_error("error loading program!");
       IDLE_CREATED = true;
     }
     pcb_current = pcb_idle;
@@ -557,6 +550,9 @@ extract_page_table(struct pte *page_table_dst, struct pte *page_table_src) {
   }
 }
 
+/*
+ * Copy clone page table
+ */
 void
 clone_page_table_alt(struct pte *page_table_dst, struct pte *page_table_src) {
   int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
@@ -580,27 +576,30 @@ clone_page_table_alt(struct pte *page_table_dst, struct pte *page_table_src) {
     (page_table_dst + i)->uprot = (page_table_src + i)->uprot;
 
     // Point restricted zone of region1 to point to same vpn as idle
-    int ephermal_buffer_index = get_page_index(EPHERMAL_BUFFER);
-    (page_table1_p +  ephermal_buffer_index)->valid = PTE_VALID;
-    (page_table1_p + ephermal_buffer_index)->kprot = (PROT_READ | PROT_WRITE);
-    (page_table1_p + ephermal_buffer_index)->uprot = PROT_NONE;
-    (page_table1_p + ephermal_buffer_index)->pfn = free_frame;
-    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE));
+    int ephermal_buffer_index = kernel_base - 1; // store vpn in empty page between kernel and user stack
+    (page_table_src +  ephermal_buffer_index)->valid = PTE_VALID;
+    (page_table_src + ephermal_buffer_index)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table_src + ephermal_buffer_index)->uprot = PROT_NONE;
+    // this page points to the same physical address as dst page table
+    (page_table_src + ephermal_buffer_index)->pfn = free_frame;
+    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
 
     // Get pointers to copy current region0 kernel stack into restricted zone
-    void *src = (void *) ((long) i * PAGESIZE)
-    void *src2 = (void *)((((long)(page_table_src + i) * PAGESIZE) & PAGEMASK3) >> 12);
-    void *dst = (void *)EPHERMAL_BUFFER;
-    printf("src is: %p\n", src);
-    printf("src2 is: %p\n", src2);
-    printf("dst is: %p\n", dst);
+    void *dst = get_page_mem(ephermal_buffer_index);
+    void *src = (void *) ((long) i * PAGESIZE);
+    /*void *src2 = (void *)((((long)(page_table_src + i) * PAGESIZE) & PAGEMASK3) >> 12);*/
+    /*void *dst = (void *)EPHERMAL_BUFFER;*/
+    printf("src is: %p, index: %i\n", src, get_page_index(src));
+    /*printf("src2 is: %p\n", src2);*/
+    printf("dst is: %p, index: %i\n", dst, get_page_index(dst));
     memcpy(dst, src , PAGESIZE);
+
     // set restricted zone to no longer valid
-    (page_table1_p + ephermal_buffer_index)->valid = PTE_INVALID;
-    (page_table1_p + ephermal_buffer_index)->kprot = PROT_NONE;
-    (page_table1_p + ephermal_buffer_index)->uprot = PROT_NONE;
-    (page_table1_p + ephermal_buffer_index)->pfn = PFN_INVALID;
-    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE));
+    (page_table_src + ephermal_buffer_index)->valid = PTE_INVALID;
+    (page_table_src + ephermal_buffer_index)->kprot = PROT_NONE;
+    (page_table_src + ephermal_buffer_index)->uprot = PROT_NONE;
+    (page_table_src + ephermal_buffer_index)->pfn = PFN_INVALID;
+    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   }
 
   printf("dump kernel stack...\n");

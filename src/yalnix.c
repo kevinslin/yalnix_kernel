@@ -18,7 +18,6 @@ extern int LoadProgram(char *name, char **args, ExceptionStackFrame *frame, stru
 
 /* Globals */
 void *interrupt_vector_table[TRAP_VECTOR_SIZE];
-char **args_copy;
 
 struct pte page_table1[PAGE_TABLE_LEN];
 struct pte *page_table1_p = page_table1;

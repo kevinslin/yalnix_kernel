@@ -12,7 +12,7 @@
 
 #include <comp421/hardware.h>
 
-#define DEBUG_LEVEL 0
+#define DEBUG_LEVEL 1
 
 #define DIVIDER "=================\n"
 

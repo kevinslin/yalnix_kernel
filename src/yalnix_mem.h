@@ -88,6 +88,7 @@ SavedContext *ctx_idle;
 ExceptionStackFrame *frame_idle;
 char **cmd_args_idle;
 ExceptionStackFrame *frame_current;
+char **args_copy;
 
 
 /* Pcb stuff */
