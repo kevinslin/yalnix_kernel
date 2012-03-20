@@ -113,7 +113,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   /* Globals init */
   KERNEL_HEAP_LIMIT = orig_brk; // top of the heap
-  page_brk = VMEM_1_LIMIT - PAGESIZE; // top of region 1 table
+  page_brk = VMEM_1_LIMIT - PAGESIZE - PAGESIZE; // top of region 1 table
   IDLE_CREATED = false;
 
   /* Create physical frames */

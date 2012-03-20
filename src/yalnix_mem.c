@@ -19,6 +19,7 @@ debug_page_table(struct pte *table, int verbosity) {
   if (verbosity) {
     for (i=0; i<PAGE_TABLE_LEN; i++) {
       printf("mem: %p, i:%i, pfn: %u, valid: %u, uprot: %x,  kprot: %x\n", table + i, i, (table + i)->pfn, (table + i)->valid, (table + i)->uprot, (table + i)->kprot);
+      printf("memory value:\n");
     }
   } // end verbosity
   printf("start address: %p\n", table);
@@ -162,6 +163,7 @@ struct pte *create_page_table() {
 struct pte *create_page_table_helper(void * brk) {
   struct pte *page_table;
   if (NULL == brk) {
+    unix_error("tried malloc memory when create page table");
     page_table = (struct pte *)malloc(PAGE_TABLE_SIZE);
     if (NULL == page_table) unix_error("can't malloc page table");
   } else {
@@ -378,16 +380,16 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
   // save context
-  memcpy(p->context, ctxp, sizeof(SavedContext));
-  /**(p->context) = *ctxp;*/
+  /*memcpy(p->context, ctxp, sizeof(SavedContext));*/
+  *(p->context) = *ctxp;
   page_table = p->page_table_p;
+
   // copy kernel stack
   int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
   int kernel_base = get_page_index(KERNEL_STACK_BASE);
+  int free_frame;
   // check we have enough free memory to allocate new kernel stack
   /*debug_frames(0);*/
-  debug_page_table(page_table, 1);
-  debug_page_table(page_table0_p, 1);
   // kernel stack is 4 pages long
   if (4 > len_free_frames()){
     unix_error("don't have enough physical space to create new process");
@@ -396,43 +398,63 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   // copy kernel stack
   for(i=kernel_base; i<kernel_limit; i++) {
     printf("i:%i\n", i);
+    // Allocate space for kernel frame of idle
+    free_frame = get_free_frame();
     (page_table + i)->valid = (page_table0_p + i)->valid;
-    (page_table + i)->pfn = get_free_frame();
+    (page_table + i)->pfn = free_frame;
     (page_table + i)->kprot = (page_table0_p + i)->kprot;
     (page_table + i)->uprot = (page_table0_p + i)->uprot;
 
-    unsigned int PAGEMASK2 =(unsigned int)((VMEM_1_SIZE / PAGESIZE) - 1);
-    (page_table1_p +  PAGEMASK2)->valid = PTE_VALID;
-    (page_table1_p + PAGEMASK2)->kprot = (PROT_READ | PROT_WRITE);
-    (page_table1_p + PAGEMASK2)->uprot = PROT_NONE;
-    (page_table1_p + PAGEMASK2)->pfn = (page_table + i)->pfn;
-    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (PAGEMASK2 * PAGESIZE));
-    printf("check!\n");
+    // Point restricted zone of region1 to point to same vpn as idle
+    int ephermal_buffer_index = get_page_index(EPHERMAL_BUFFER);
 
+    (page_table1_p +  ephermal_buffer_index)->valid = PTE_VALID;
+    (page_table1_p + ephermal_buffer_index)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table1_p + ephermal_buffer_index)->uprot = PROT_NONE;
+    (page_table1_p + ephermal_buffer_index)->pfn = free_frame;
+    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE));
+
+    // Get pointers to copy current region0 kernel stack into restricted zone
     void *src = (void *)((((long)(page_table0_p + i) * PAGESIZE) & PAGEMASK3) >> 12);
-    void *dst = ((long)(VMEM_1_BASE + (PAGEMASK2 * PAGESIZE)));
+    void *dst = (void *)EPHERMAL_BUFFER;
+    /*void *dst = (void *)((long)(VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE)));*/
+
     printf("src is: %p\n", src);
     printf("dst is: %p\n", dst);
     memcpy(dst, src , PAGESIZE);
 
-    printf("check2!\n");
-    (page_table1_p + PAGEMASK2)->valid = PTE_INVALID;
-    (page_table1_p + PAGEMASK2)->kprot = PROT_NONE;
-    (page_table1_p + PAGEMASK2)->uprot = PROT_NONE;
-    (page_table1_p + PAGEMASK2)->pfn = PFN_INVALID;
-    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (PAGEMASK2 * PAGESIZE));
+    // set restricted zone to no longer valid
+    (page_table1_p + ephermal_buffer_index)->valid = PTE_INVALID;
+    (page_table1_p + ephermal_buffer_index)->kprot = PROT_NONE;
+    (page_table1_p + ephermal_buffer_index)->uprot = PROT_NONE;
+    (page_table1_p + ephermal_buffer_index)->pfn = PFN_INVALID;
+    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE));
+
+    printf("address: %x\n", EPHERMAL_BUFFER);
+    printf("page index: %i\n", get_page_index(EPHERMAL_BUFFER));
+    printf("page memory: %x\n", get_page_mem(get_page_index(EPHERMAL_BUFFER)));
+    printf("init: %x\n", (void *) page_table0_p + i);
+    printf("idle: %x\n", (void *) page_table + i);
+
 
     /*memcpy( get_page_mem(page_table + i), get_page_mem(page_table0_p + i), PAGESIZE);*/
     /*memcpy( (void *)(((long)(page_table + i) & PAGEMASK_REVERSE) << PAGESHIFT), (void *)(((long)(page_table0_p + i) & PAGEMASK_REVERSE) << PAGESHIFT), PAGESIZE);*/
   }
 
-  /*debug_page_table(page_table,1);*/
+  printf("idle process..\n");
+  debug_page_table(page_table, 0);
+  printf("current process..\n");
+  debug_page_table(page_table0_p, 0);
+  debug_pcb(p);
+
   // update registers & flush
   dprintf("about to write register pointers...", 1);
   page_table0_p = page_table;
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
+  dprintf("about to write flush...", 1);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
-  return p->context;
+  dprintf("finished flushing...", 0);
+  return context;
 }
 
 /*
@@ -482,7 +504,6 @@ SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 ) {
  */
 SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   dprintf("in switchfunc_normal...", 1);
-  int i;
   struct pte *page_table;
   struct pcb *p1 = (struct pcb *)pcb1;
   struct pcb *p2 = (struct pcb *)pcb2;
@@ -496,65 +517,12 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   dprintf("about to update ptr0...", 0);
   page_table0_p = p2->page_table_p;
 
-  debug_page_table(page_table, 1);
-  debug_page_table(page_table0_p, 1);
+  debug_page_table(page_table, 0);
+  debug_page_table(page_table0_p, 0);
 
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
-  //TODO: not sure if this is right
-  // Set regs & psr
-  /*p2->frame->pc = p2->pc_next;*/
-  /*p2->frame->sp = p2->sp_next;*/
-  /*p2->frame->psr = p2->psr_next;*/
-  /*if (p2->frame != NULL) {*/
-    /*p2->frame = NULL;*/
-    /*p2->pc_next = NULL;*/
-    /*p2->sp_next = NULL;*/
-    /*p2->psr_next = -1;*/
-  /*}*/
-  // return context of pcb2
-  // this context needs to have been created by a call to context switch
-  // return address of context of second process
-  return ctxp;
-  /*return p2->context;*/
-}
-
-/*
- * Called to context switch into first program
- * Sets the current page table to be the page table of p1
- * @params:
- * ctxp - pointer to context of p1
- * p1 - pointer to pcb of first process
- * p2 - should always be NULL (DEPRECIATE(?))
- * @return:
- * ctxp - ctx of p2
- */
-SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
-  dprintf("in initswitchfunction...", 1);
-
-  // Get page table
-  struct pcb *p = (struct pcb *) p1;
-  struct pte *page_table = (p->page_table_p);
-  p->context = ctxp;
-  //page_table = init_page_table0(page_table);
-
-  //clone_page_table(page_table0_p, &page_table);
-  page_table = init_page_table0(page_table);
-
-  // debug
-  debug_pcb(p);
-  debug_page_table(page_table, 1);
-  // Update current page table
-  dprintf("writing ptr0 reg...", 0);
-  page_table0_p = page_table;
-  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
-
-  // flush out old entries
-  if (VM_ENABLED) {
-    dprintf("flusing region0...", 0);
-    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
-  }
-  return ctxp;
+  return p2->context;
 }
 
 
@@ -566,6 +534,7 @@ void get_next_ready_process(struct pte *page_table) {
   dprintf("in get next ready process...", 1);
   elem *e;
   e = dequeue(p_ready);
+
   // if no ready process, switch to idle
   if (NULL == e) {
     dprintf("switching idle...", 1);
@@ -584,15 +553,11 @@ void get_next_ready_process(struct pte *page_table) {
       pcb_idle->context = ctx_idle;
       /*debug_frames(0);*/
       // Initialzed context but don't actually context switch
-      if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL)) unix_error("bad context switch!");
-      if(LoadProgram("idle", cmd_args_idle, frame_idle, &pcb_idle) != 0) unix_error("error loading program!");
+      if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, (void *)pcb_idle)) unix_error("bad context switch!");
       dprintf("finished initializing idle...", 0);
-    }
+    } // finished creating idle pcb
 
-  dprintf("about to load idle...", 0);
-  /*if(LoadProgram("idle", cmd_args, frame, &pcb_idle) != 0) unix_error("error loading program!");*/
-  debug_pcb(pcb_idle);
-    // check if current process is free'd (exit)
+    // check if current process is free'd
     if (NULL == pcb_current) {
       dprintf("current proccess no longer exists", 1);
       // context switch into idle. Orignal program no longer exists
@@ -605,6 +570,7 @@ void get_next_ready_process(struct pte *page_table) {
       free(page_table); //TODO
       dprintf("finished freeing old page table...", 0);
     } else {
+      // current process is not free'd
       dprintf("current process is delayed...", 0);
       debug_pcb(pcb_idle);
       // current process is running but delayed
@@ -615,10 +581,11 @@ void get_next_ready_process(struct pte *page_table) {
     }
     // finished context switching, now set the current pcb to idle to complete the switch
     dprintf("activating pcb of idle...", 1);
-    /*if (!IDLE_CREATED) {*/
-      /*if(LoadProgram("idle", cmd_args_idle, frame_idle, &pcb_idle) != 0) unix_error("error loading program!");*/
-      /*IDLE_CREATED = true;*/
-    /*}*/
+    if (!IDLE_CREATED) {
+      dprintf("loading idle for first time...", 1);
+      if(LoadProgram("idle", cmd_args_idle, frame_idle, &pcb_idle) != 0) unix_error("error loading program!");
+      IDLE_CREATED = true;
+    }
     pcb_current = pcb_idle;
   } else {
     // there is a process waiting to run so run that instead of idle

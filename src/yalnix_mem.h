@@ -29,9 +29,11 @@
 
 #define PAGEMASK_REVERSE 0x3ff
 #define PAGEMASK3 0x3ffffffff
+#define EPHERMAL_BUFFER VMEM_1_SIZE - PAGESIZE
 
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
-#define get_page_mem(page_index) ((void *)(page_index * PAGESIZE))
+//#define get_page_mem(page_index) ((void *)(page_index * PAGESIZE))
+#define get_page_mem(page_index)  (((long) page_index & (long) PAGEMASK_REVERSE) << PAGESHIFT)
 
 /* Structs */
 typedef struct {
