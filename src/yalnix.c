@@ -225,6 +225,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   ctx_idle = (SavedContext *)malloc(sizeof(SavedContext));
   SavedContext *ctx_init = (SavedContext *)malloc(sizeof(SavedContext));
   frame_idle = malloc(sizeof (ExceptionStackFrame));
+  frame_idle = frame;
 
   /* Enable virtual memory */
   dprintf("enabling virtual memory...", 1);

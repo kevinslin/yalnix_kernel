@@ -383,7 +383,7 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   *(p->context) = *ctxp;
   page_table = p->page_table_p;
 
-  extract_page_table(page_table, page_table0_p);
+  clone_page_table_alt(page_table, page_table0_p);
 
   printf("idle process..\n");
   debug_page_table(page_table, 0);
@@ -588,11 +588,13 @@ clone_page_table_alt(struct pte *page_table_dst, struct pte *page_table_src) {
     WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE));
 
     // Get pointers to copy current region0 kernel stack into restricted zone
-    void *src = (void *)((((long)(page_table_src + i) * PAGESIZE) & PAGEMASK3) >> 12);
+    void *src = (void *) ((long) i * PAGESIZE)
+    void *src2 = (void *)((((long)(page_table_src + i) * PAGESIZE) & PAGEMASK3) >> 12);
     void *dst = (void *)EPHERMAL_BUFFER;
+    printf("src is: %p\n", src);
+    printf("src2 is: %p\n", src2);
+    printf("dst is: %p\n", dst);
     memcpy(dst, src , PAGESIZE);
-    /*printf("src is: %p\n", src);*/
-    /*printf("dst is: %p\n", dst);*/
     // set restricted zone to no longer valid
     (page_table1_p + ephermal_buffer_index)->valid = PTE_INVALID;
     (page_table1_p + ephermal_buffer_index)->kprot = PROT_NONE;
