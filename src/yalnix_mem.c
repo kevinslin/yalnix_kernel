@@ -39,6 +39,7 @@ debug_stack_frame(ExceptionStackFrame *frame) {
 void
 debug_frames(int verbosity) {
 	int i;
+  printf("dumping physical frames...\n");
 	printf("lim address: %p\n", frames_p + NUM_FRAMES);
 	printf("base address: %p\n", frames_p);
 	printf("free frames: %i\n", len_free_frames());
@@ -371,6 +372,7 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
  */
 SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   dprintf("in switchfunc_idle...", 1);
+  int i;
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
   // save context
@@ -380,7 +382,9 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
   int kernel_base = get_page_index(KERNEL_STACK_BASE);
   // check we have enough free memory to allocate new kernel stack
-  if ((kernel_limit - kernel_base) < len_free_frames()){
+  debug_frames(0);
+  // kernel stack is 4 pages long
+  if (4 > len_free_frames()){
     unix_error("don't have enough physical space to create new process");
   }
   for(i=kernel_base; i<=kernel_limit; i++) {
@@ -390,8 +394,8 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
     (page_table + i)->uprot = (page_table0_p + i)->uprot;
   }
   // update registers & flush
-  WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
-  WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+  /*WriteRegister( REG_PTR0, (RCS421RegVal) page_table);*/
+  /*WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);*/
   return ctxp;
 }
 
@@ -405,10 +409,11 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
  */
 SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
   dprintf("in switchfunc_idle...", 1);
+  int i;
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table;
   // save context
-  *(p1->context) = *ctxp;
+  *(p->context) = *ctxp;
   page_table = p->page_table_p; // should be a completely reset page table
   // extract kernel stack
   int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
@@ -420,7 +425,8 @@ SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
     (page_table + i)->uprot = (page_table0_p + i)->uprot;
   }
   // Update register & flush
-  WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
+  page_table0_p = page_table;
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   return ctxp;
 }
@@ -439,32 +445,48 @@ SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 ) {
  */
 SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   dprintf("in switchfunc_normal...", 1);
-  struct pcb *p1 = (struct pcb *)p1;
+  int i;
+  struct pte *page_table;
+  struct pcb *p1 = (struct pcb *)pcb1;
   struct pcb *p2 = (struct pcb *)pcb2;
   // save context of current process
   // we want to save a COPY, not just the pointer!
   *(p1->context) = *ctxp;
-  // update machine with page table of new process
-  dprintf("about to write new page table address", 1);
+  page_table = p1->page_table_p; // should be a completely reset page table
+  // copy kernel stack
+  int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
+  int kernel_base = get_page_index(KERNEL_STACK_BASE);
+  // check we have enough free memory to allocate new kernel stack
+  debug_frames(0);
+  // kernel stack is 4 pages long
+  if (4 > len_free_frames()){
+    unix_error("don't have enough physical space to create new process");
+  }
+  for(i=kernel_base; i<=kernel_limit; i++) {
+    (page_table + i)->valid = (page_table0_p + i)->valid;
+    (page_table + i)->pfn = get_free_frame();
+    (page_table + i)->kprot = (page_table0_p + i)->kprot;
+    (page_table + i)->uprot = (page_table0_p + i)->uprot;
+  }
+  // update registers & flush
   page_table0_p = p2->page_table_p;
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
-  // clear out old entries
-  dprintf("about to flush..", 1);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   //TODO: not sure if this is right
   // Set regs & psr
-  if (p2->frame != NULL) {
-    p2->frame->pc = p2->pc_next;
-    p2->frame->sp = p2->sp_next;
-    p2->frame->psr = p2->psr_next;
+  /*p2->frame->pc = p2->pc_next;*/
+  /*p2->frame->sp = p2->sp_next;*/
+  /*p2->frame->psr = p2->psr_next;*/
+  /*if (p2->frame != NULL) {*/
     /*p2->frame = NULL;*/
     /*p2->pc_next = NULL;*/
     /*p2->sp_next = NULL;*/
     /*p2->psr_next = -1;*/
-  }
+  /*}*/
   // return context of pcb2
   // this context needs to have been created by a call to context switch
-  return ctxp;
+  // return address of context of second process
+  return p2->context;
 }
 
 /*
@@ -530,6 +552,8 @@ void get_next_ready_process(struct pte *page_table) {
       free(page_table); //TODO
       dprintf("finished freeing old page table...", 0);
     } else {
+      dprintf("current process is delayed...", 0);
+      debug_pcb(pcb_idle);
       // current process is running but delayed
       // it is already in the delay queue and just needs to be contex switched out
       if (0 > ContextSwitch(switchfunc_normal, pcb_current->context, pcb_current, pcb_idle)) {

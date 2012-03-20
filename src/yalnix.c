@@ -103,7 +103,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   int num_frames;
   int kernel_heap_limit_index;
   int kernel_text_limit_index;
-  struct pte page_table0[NUM_FRAMES];
 
   /* TMP */
   args_copy = cmd_args; //TODO: hack!
@@ -221,11 +220,13 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   WriteRegister( REG_PTR1, (RCS421RegVal) page_table1_p);
 
+  SavedContext *ctx_idle = (SavedContext *)malloc(sizeof(SavedContext));
+  SavedContext *ctx_init = (SavedContext *)malloc(sizeof(SavedContext));
+
   /* Enable virtual memory */
   dprintf("enabling virtual memory...", 1);
   WriteRegister( REG_VM_ENABLE, (RCS421RegVal) 1);
   VM_ENABLED = true;
-  dprintf("enabled virtual memory...", 1);
 
   // Create idle process
   /**************************************/
@@ -243,12 +244,16 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   // Saved context
   dprintf("about to create context...", 0);
-  SavedContext *ctx = (SavedContext *)malloc(sizeof(SavedContext));
-  pcb_idle->context = ctx;
+  pcb_idle->context = ctx_idle;
+  /*debug_frames(0);*/
 
   // Initialzed context but don't actually context switch
-  ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL);
+  if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL)) unix_error("bad context switch!");
   dprintf("finished initializing idle...", 0);
+
+  dprintf("about to load idle...", 0);
+  if(LoadProgram("idle", cmd_args, frame, &pcb_idle) != 0) unix_error("error loading program!");
+  debug_pcb(pcb_idle);
 
   printf(DIVIDER);
   printf("INIT process\n");
@@ -270,14 +275,12 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   // Saved context
   dprintf("about to create context...", 0);
-  SavedContext *ctx_init = (SavedContext *)malloc(sizeof(SavedContext));
   pcb_init->context = ctx_init;
 
   // Special context switch into init that inherits current process context
   dprintf("about to context switch...", 0);
-  if (0 > ContextSwitch(switchfunc_init, pcb_init->context, (void *)pcb_init, NULL)) {
-    unix_error("error context switching!");
-  }
+  if (0 > ContextSwitch(switchfunc_init, pcb_init->context, (void *)pcb_init, NULL)) unix_error("error context switching!");
+  debug_pcb(pcb_init);
 
   dprintf("about to load init...", 0);
   if(LoadProgram("init", cmd_args, frame, &pcb_init) != 0) unix_error("error loading program!");

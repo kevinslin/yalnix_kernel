@@ -219,7 +219,6 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   }
   (*pcb_p)->stack_limit_index = k;
 
-
   /*
    *  All pages for the new address space are now in place.  Flush
    *  the TLB to get rid of all the old PTEs from this process, so
@@ -263,7 +262,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   /*
    *  Set the entry point in the exception frame.
    */
-  //// initialize pc for current process
+  // initialize pc for current process
   frame->pc = (void *)li.entry;
 
   /*
@@ -294,5 +293,6 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   }
   // initialize psr to 0
   frame->psr = 0;
+  (*pcb_p)->frame = frame;
   return (0);
 }
