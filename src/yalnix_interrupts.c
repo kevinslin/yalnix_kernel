@@ -82,7 +82,7 @@ void interrupt_clock(ExceptionStackFrame *frame){
     pcb_p->time_delay = pcb_p->time_delay - 1;
     // process finished delaying, put back in ready
     if (pcb_p->time_delay <= 0) {
-      printf("move element from delay into ready...\n");
+      dprintf("move element from delay into ready...", 1);
       pcb_tmp = (struct pcb *)pop(p_delay, pcb_p);
       enqueue(p_ready, (void *) pcb_tmp);
     }
@@ -92,12 +92,17 @@ void interrupt_clock(ExceptionStackFrame *frame){
   pcb_current->time_current = pcb_current->time_current + 1;
   // don't context switch if idle is the only process
   if ((2 <= pcb_current->time_current) && (0 <= p_ready->len)) {
+    dprintf("found a process in ready...", 2);
     // we need to reset the current time and put it into ready
     pcb_current->time_current = 0;
     // NEVER stick idle in queue
-    if (pcb_current != pcb_idle) enqueue(p_ready, (void *)pcb_current);
+    if (pcb_current != pcb_idle) {
+      dprintf("sticking current process in ready queue...", 2);
+      enqueue(p_ready, (void *)pcb_current);
+    }
     get_next_ready_process(pcb_current->page_table_p);
   }
+  dprintf("exit clock interrupt...", 2);
 }
 
 void interrupt_illegal(ExceptionStackFrame *frame){

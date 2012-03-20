@@ -45,9 +45,7 @@ struct pcb{
   unsigned int time_current;
   unsigned int time_delay; // time to wait before process is restarted
   int status; // delayed, sleeping...
-  void *brk; //heap limit DEPRECIATE?
   int brk_index; //heap limit
-  void *stack_limit; // DEPRECIATE?
   int stack_limit_index;
   SavedContext *context;
   struct pte *page_table_p;
@@ -60,6 +58,9 @@ struct pcb{
   void *sp_next;
   unsigned long psr_next;
   char *name; //for debugging purposes
+
+  void *brk; //heap limit DEPRECIATE?
+  void *stack_limit; // DEPRECIATE?
 };
 
 typedef struct _stream {
@@ -107,6 +108,7 @@ void debug_page_table(struct pte *table, int verbosity);
 void debug_stack_frame(ExceptionStackFrame *frame);
 void debug_frames();
 void debug_pcb(struct pcb *pcb_p);
+void debug_process_queues();
 
 /* Frame Functions */
 int initialize_frames(int num_frames);
@@ -138,7 +140,6 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_normal(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2); //DEPRECIATE!
-SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 ); //DEPRECIATE!
 
 /* Misc Functions */
 int get_next_pid();
