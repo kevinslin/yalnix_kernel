@@ -17,14 +17,16 @@ void Exit(int status) {
 }
 
 int Delay(int clock_ticks) {
+  dprintf("in delay...", 1);
 	// set delay on current proccess
   if (0 == clock_ticks) return 0;
   if (0 > clock_ticks) return ERROR;
   pcb_current->time_delay = clock_ticks;
-
+  debug_pcb(pcb_current); //DEBUG
 	// Put current process in delay
 	if (0 > enqueue(p_delay, (void *) pcb_current)) return ERROR;
 	get_next_ready_process(pcb_current->page_table_p);
+  dprintf("exit delay...", 1);
 	return 0;
 }
 

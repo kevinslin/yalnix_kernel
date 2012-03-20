@@ -489,7 +489,7 @@ void get_next_ready_process(struct pte *page_table) {
       pcb_idle->context = ctx_idle;
       /*debug_frames(0);*/
       // Initialzed context but don't actually context switch
-      if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, (void *)pcb_idle)) unix_error("bad context switch!");
+      if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL)) unix_error("bad context switch!");
       dprintf("finished initializing idle...", 0);
     } // finished creating idle pcb
 

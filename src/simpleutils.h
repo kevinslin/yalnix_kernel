@@ -15,6 +15,7 @@
 #define DEBUG_LEVEL 1
 
 #define DIVIDER "=================\n"
+#define BOND "##############################################################\n"
 
 
 void dprintf(char *msg, int level);

@@ -63,7 +63,7 @@ interrupt_kernel(ExceptionStackFrame *frame) {
  * Clock interrupt decrements everything in the delay queue
  */
 void interrupt_clock(ExceptionStackFrame *frame){
-  printf("got clock interrupt...\n");
+  dprintf("in clock interrupt...", 1);
   /*
    * Go through all the processors in waiting queue and decrement time delay.
    * If one reaches 0, move to ready queue.
@@ -74,6 +74,7 @@ void interrupt_clock(ExceptionStackFrame *frame){
   struct pcb *pcb_tmp;
   elem_c = p_delay->head;
 
+  debug_process_queues();
   // decrement items in delay queue
   // move into ready if time_delay has run down
   for (i=0; i < p_delay->len; i++) {
@@ -91,7 +92,8 @@ void interrupt_clock(ExceptionStackFrame *frame){
   // context switch if process has been running for longer then 2 clock ticks
   pcb_current->time_current = pcb_current->time_current + 1;
   // don't context switch if idle is the only process
-  if ((2 <= pcb_current->time_current) && (0 <= p_ready->len)) {
+  if ((2 <= pcb_current->time_current) && (0 < p_ready->len)) {
+    dprintf(BOND, 2);
     dprintf("found a process in ready...", 2);
     // we need to reset the current time and put it into ready
     pcb_current->time_current = 0;
