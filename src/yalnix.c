@@ -111,9 +111,10 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   num_frames = pmem_size / PAGESIZE;
   assert(num_frames > 0); // silly...
 
-  /* Set the heap limit */
+  /* Globals init */
   KERNEL_HEAP_LIMIT = orig_brk; // top of the heap
   page_brk = VMEM_1_LIMIT - PAGESIZE; // top of region 1 table
+  IDLE_CREATED = false;
 
   /* Create physical frames */
   dprintf("initializing frames...", 0);
@@ -220,8 +221,10 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   WriteRegister( REG_PTR1, (RCS421RegVal) page_table1_p);
 
-  SavedContext *ctx_idle = (SavedContext *)malloc(sizeof(SavedContext));
+  /* Do mallocing before enabling virtual memory */
+  ctx_idle = (SavedContext *)malloc(sizeof(SavedContext));
   SavedContext *ctx_init = (SavedContext *)malloc(sizeof(SavedContext));
+  frame_idle = malloc(sizeof (ExceptionStackFrame));
 
   /* Enable virtual memory */
   dprintf("enabling virtual memory...", 1);
@@ -233,27 +236,26 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   printf(DIVIDER);
   printf("IDLE process\n");
   printf(DIVIDER);
-  // Create an idle process
-  dprintf("create idle process...", 1);
-  /*struct pte *idle_page_table;*/
-  pcb_idle = Create_pcb(NULL);
-  pcb_idle->name = "idle process";
+  /*// Create an idle process*/
+  /*dprintf("create idle process...", 1);*/
+  /*[>struct pte *idle_page_table;<]*/
+  /*pcb_idle = Create_pcb(NULL);*/
+  /*pcb_idle->name = "idle process";*/
 
-  // Set page table to initialized table
-  pcb_idle->page_table_p = create_page_table();
+  /*// Set page table to initialized table*/
+  /*pcb_idle->page_table_p = create_page_table();*/
 
-  // Saved context
-  dprintf("about to create context...", 0);
-  pcb_idle->context = ctx_idle;
-  /*debug_frames(0);*/
+  /*// Saved context*/
+  /*dprintf("about to create context...", 0);*/
+  /*pcb_idle->context = ctx_idle;*/
 
-  // Initialzed context but don't actually context switch
-  if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL)) unix_error("bad context switch!");
-  dprintf("finished initializing idle...", 0);
+  /*// Initialzed context but don't actually context switch*/
+  /*if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL)) unix_error("bad context switch!");*/
+  /*dprintf("finished initializing idle...", 0);*/
 
-  dprintf("about to load idle...", 0);
-  if(LoadProgram("idle", cmd_args, frame, &pcb_idle) != 0) unix_error("error loading program!");
-  debug_pcb(pcb_idle);
+  /*dprintf("about to load idle...", 0);*/
+  /*if(LoadProgram("idle", cmd_args, frame, &pcb_idle) != 0) unix_error("error loading program!");*/
+  /*debug_pcb(pcb_idle);*/
 
   printf(DIVIDER);
   printf("INIT process\n");

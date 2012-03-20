@@ -16,6 +16,8 @@ extern void start_idle(ExceptionStackFrame *frame);
 void
 interrupt_kernel(ExceptionStackFrame *frame) {
   int is_valid;
+  // update current frame
+  frame_current = frame;
 	switch(frame->code) {
 		case YALNIX_FORK:
 			printf("syscall fork...\n");

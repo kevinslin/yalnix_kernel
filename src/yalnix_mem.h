@@ -27,6 +27,9 @@
 #define TTY_FREE 0
 #define TTY_BUSY 1
 
+#define PAGEMASK_REVERSE 0x3ff
+#define PAGEMASK3 0x3ffffffff
+
 #define get_page_index(mem_address) (((long) mem_address & PAGEMASK) >> PAGESHIFT)
 #define get_page_mem(page_index) ((void *)(page_index * PAGESIZE))
 
@@ -76,8 +79,12 @@ int tty_busy[NUM_TERMINALS];
 /* Etc */
 bool VM_ENABLED;
 long page_brk;
-struct pte *page_table0_p;
-
+struct pte *page_table0_p; // points to current region0 table
+bool IDLE_CREATED;
+SavedContext *ctx_idle;
+ExceptionStackFrame *frame_idle;
+char **cmd_args_idle;
+ExceptionStackFrame *frame_current;
 
 
 /* Pcb stuff */

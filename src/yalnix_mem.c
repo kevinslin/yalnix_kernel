@@ -3,11 +3,13 @@
 
 extern void start_idle();
 extern struct pte *page_table1_p;
+extern int LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pcb_p);
 
 /* Globals */
 // incremented every time a new process is started
 int PID = 0;
 struct pte pte_null = {0, 0, 0, 0, 0};
+struct pte pte_mask = {-1, 0, 0, 0, 0};
 
 /* Debug functions */
 void
@@ -382,21 +384,57 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
   int kernel_base = get_page_index(KERNEL_STACK_BASE);
   // check we have enough free memory to allocate new kernel stack
-  debug_frames(0);
+  /*debug_frames(0);*/
+  debug_page_table(page_table, 1);
+  debug_page_table(page_table0_p, 1);
   // kernel stack is 4 pages long
   if (4 > len_free_frames()){
     unix_error("don't have enough physical space to create new process");
   }
+  dprintf("about to copy kernel stack...", 0);
+  // copy kernel stack
   for(i=kernel_base; i<=kernel_limit; i++) {
+    printf("i:%i\n", i);
     (page_table + i)->valid = (page_table0_p + i)->valid;
     (page_table + i)->pfn = get_free_frame();
     (page_table + i)->kprot = (page_table0_p + i)->kprot;
     (page_table + i)->uprot = (page_table0_p + i)->uprot;
+
+    unsigned int PAGEMASK2 =(unsigned int)((VMEM_1_SIZE / PAGESIZE) - 1);
+    (page_table1_p +  PAGEMASK2)->valid = PTE_VALID;
+    (page_table1_p + PAGEMASK2)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table1_p + PAGEMASK2)->uprot = PROT_NONE;
+    (page_table1_p + PAGEMASK2)->pfn = (page_table + i)->pfn;
+    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (PAGEMASK2 * PAGESIZE));
+    printf("check!\n");
+
+
+    printf("pfn: %x\n", pte_mask.pfn);
+    void *src = (void *)((((long)(page_table0_p + i) * PAGESIZE) & PAGEMASK3) >> 12);
+    void *src2 = (void *)(((long)(page_table0_p + i) & pte_mask.pfn) << 9);
+    void *dst = ((long)(VMEM_1_BASE + (PAGEMASK2 * PAGESIZE)));
+    printf("src is: %p\n", src);
+    printf("src2 is: %p\n", src2);
+    printf("dst is: %p\n", dst);
+
+    memcpy(dst, src , PAGESIZE);
+
+    printf("check2!\n");
+    (page_table1_p + PAGEMASK2)->valid = PTE_INVALID;
+    (page_table1_p + PAGEMASK2)->kprot = PROT_NONE;
+    (page_table1_p + PAGEMASK2)->uprot = PROT_NONE;
+    (page_table1_p + PAGEMASK2)->pfn = PFN_INVALID;
+    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (PAGEMASK2 * PAGESIZE));
+
+    /*memcpy( get_page_mem(page_table + i), get_page_mem(page_table0_p + i), PAGESIZE);*/
+    /*memcpy( (void *)(((long)(page_table + i) & PAGEMASK_REVERSE) << PAGESHIFT), (void *)(((long)(page_table0_p + i) & PAGEMASK_REVERSE) << PAGESHIFT), PAGESIZE);*/
   }
+  /*debug_page_table(page_table,1);*/
   // update registers & flush
-  WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
-  WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
-  return ctxp;
+  /*page_table0_p = page_table;*/
+  /*WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);*/
+  /*WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);*/
+  return p->context;
 }
 
 /*
@@ -424,6 +462,7 @@ SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
     (page_table + i)->kprot = (page_table0_p + i)->kprot;
     (page_table + i)->uprot = (page_table0_p + i)->uprot;
   }
+  debug_page_table(page_table,1);
   // Update register & flush
   page_table0_p = page_table;
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
@@ -453,22 +492,9 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   // we want to save a COPY, not just the pointer!
   *(p1->context) = *ctxp;
   page_table = p1->page_table_p; // should be a completely reset page table
-  // copy kernel stack
-  int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
-  int kernel_base = get_page_index(KERNEL_STACK_BASE);
-  // check we have enough free memory to allocate new kernel stack
-  debug_frames(0);
-  // kernel stack is 4 pages long
-  if (4 > len_free_frames()){
-    unix_error("don't have enough physical space to create new process");
-  }
-  for(i=kernel_base; i<=kernel_limit; i++) {
-    (page_table + i)->valid = (page_table0_p + i)->valid;
-    (page_table + i)->pfn = get_free_frame();
-    (page_table + i)->kprot = (page_table0_p + i)->kprot;
-    (page_table + i)->uprot = (page_table0_p + i)->uprot;
-  }
+
   // update registers & flush
+  dprintf("about to update ptr0...", 0);
   page_table0_p = p2->page_table_p;
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
@@ -486,7 +512,8 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   // return context of pcb2
   // this context needs to have been created by a call to context switch
   // return address of context of second process
-  return p2->context;
+  return ctxp;
+  /*return p2->context;*/
 }
 
 /*
@@ -539,6 +566,28 @@ void get_next_ready_process(struct pte *page_table) {
   // if no ready process, switch to idle
   if (NULL == e) {
     dprintf("switching idle...", 1);
+
+    if (!IDLE_CREATED) {
+      // Create an idle process
+      dprintf("create idle process...", 1);
+      /*struct pte *idle_page_table;*/
+      pcb_idle = Create_pcb(NULL);
+      pcb_idle->name = "idle process";
+
+      // Set page table to initialized table
+      pcb_idle->page_table_p = create_page_table();
+      // Saved context
+      dprintf("about to create context...", 0);
+      pcb_idle->context = ctx_idle;
+      /*debug_frames(0);*/
+      // Initialzed context but don't actually context switch
+      if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL)) unix_error("bad context switch!");
+      dprintf("finished initializing idle...", 0);
+    }
+
+  dprintf("about to load idle...", 0);
+  /*if(LoadProgram("idle", cmd_args, frame, &pcb_idle) != 0) unix_error("error loading program!");*/
+  debug_pcb(pcb_idle);
     // check if current process is free'd (exit)
     if (NULL == pcb_current) {
       dprintf("current proccess no longer exists", 1);
@@ -562,6 +611,10 @@ void get_next_ready_process(struct pte *page_table) {
     }
     // finished context switching, now set the current pcb to idle to complete the switch
     dprintf("activating pcb of idle...", 1);
+    if (!IDLE_CREATED) {
+      if(LoadProgram("idle", cmd_args_idle, frame_idle, &pcb_idle) != 0) unix_error("error loading program!");
+      IDLE_CREATED = true;
+    }
     pcb_current = pcb_idle;
   } else {
     // there is a process waiting to run so run that instead of idle
