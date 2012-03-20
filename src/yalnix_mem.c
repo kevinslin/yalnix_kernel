@@ -61,37 +61,14 @@ debug_frames(int verbosity) {
 void debug_pcb(struct pcb *pcb_p) {
   printf(DIVIDER);
   printf("dumping pcb...\n");
-  /*debug_page_table(pcb_p->page_table_p, 0);*/
   printf("pid: %i\n", pcb_p->pid);
   printf("brk index: %i\n", pcb_p->brk_index);
   printf("stack limit index: %i\n", pcb_p->stack_limit_index);
   printf("pte virtual: %p\n", pcb_p->page_table_p);
   printf("pte physical: %p\n", pcb_p->page_table_p_physical);
-  /*if (NULL == pcb_p->context)*/
-    /*printf("context: NULL\n");*/
-  /*else*/
-    /*printf("context: %p\n", pcb_p->context);*/
-  /*printf("name: %s\n", pcb_p->name);*/
+  printf("context: %p\n", pcb_p->context);
+  printf("name: %s\n", pcb_p->name);
   printf(DIVIDER);
-/*struct pcb{*/
-  /*unsigned int pid;*/
-  /*unsigned int time_current;*/
-  /*unsigned int time_delay; // time to wait before process is restarted*/
-  /*int status; // delayed, sleeping...*/
-  /*void *brk; //heap limit DEPRECIATE?*/
-  /*int brk_index; //heap limit*/
-  /*void *stack_limit; // DEPRECIATE?*/
-  /*int stack_limit_index;*/
-  /*SavedContext *context;*/
-  /*struct pte page_table[PAGE_TABLE_LEN];*/
-  /*struct pcb *parent;*/
-  /*struct pcb *children_active[5];*/
-  /*struct pcb *children_wait[5];*/
-  /*ExceptionStackFrame *frame;*/
-  /*void *pc_next;*/
-  /*void *sp_next;*/
-  /*unsigned long psr_next;*/
-  /*char *name; //for debugging purposes*/
 }
 
 /*######### Frame Functions #########*/
@@ -101,9 +78,7 @@ void debug_pcb(struct pcb *pcb_p) {
 int
 initialize_frames(int num_frames) {
 	int i;
-  // set global NUM_FRAMES variable
-	NUM_FRAMES = num_frames;
-
+	NUM_FRAMES = num_frames; // number of frames in our page talbe
   // malloc frames
 	frames_p = (page_frames *)malloc( sizeof(page_frames) * NUM_FRAMES );
 	if (frames_p == NULL) unix_error("can't malloc frames");
@@ -156,10 +131,11 @@ get_free_frame() {
 /*######### Page Tables  #########*/
 /*
  * Create page table
+ * The pagebrk starts off at vmem_1_limit.
+ * Round it down and decrement to free up space for a page table.
  */
 struct pte *create_page_table() {
   // find free frame for page table
-  /*long page_brk = VMEM_1_LIMIT - PAGESIZE;*/
   long old = DOWN_TO_PAGE(page_brk) / PAGESIZE;
   page_brk -= PAGESIZE;
   long new = DOWN_TO_PAGE(page_brk) / PAGESIZE;
@@ -169,8 +145,8 @@ struct pte *create_page_table() {
   if ((frames_p + new)->free == FRAME_NOT_FREE) {
     unix_error("can't create page table");
   } else {
-    set_frame(new, FRAME_FREE);
-    int offset = new - (VMEM_1_BASE / PAGESIZE);
+    set_frame(new, FRAME_FREE); // maybe redundant
+    int offset = new - (VMEM_1_BASE / PAGESIZE); // index into pte1
     (page_table1_p + offset)->valid = PTE_VALID;
     (page_table1_p + offset)->pfn = new;
     (page_table1_p + offset)->kprot = (PROT_READ | PROT_WRITE);
@@ -389,29 +365,23 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
 
 /*
  * Idle switch
+ * Creates the initial SavedContext for idle.
+ * Also copies the contents of the kernel stack to actual phyical pages (?)
  */
 SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
-  dprintf("in switchfunc_idle", 0);
-  fflush(stdout);
-
-  // Init function gone, there's no function to switch from
+  dprintf("in switchfunc_idle...", 1);
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
+  // save context of idle into pcb
+  *(p->context) = *ctxp;
 
-  printf("[debug]: page 508: %u\n", (page_table + 508)->valid);
-  dprintf("updating reg_ptr0...", 0);
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
-
-  /*if (VM_ENABLED) {*/
-    /*dprintf("flusing region0...", 0);*/
-    /*WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);*/
-  /*}*/
-
+  WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   return ctxp;
 }
 
 /*
- * Initial context switch into first process (idle)
+ * Initial context switch into first process
  */
 SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
   dprintf("in switchfunc_idle...", 0);
@@ -441,25 +411,35 @@ SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 ) {
 
 /*
  * Switch from process 1 to process 2
+ * Save the context of process 1 into it's pcb
  */
 SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
-  dprintf("in switchfunc_normal...", 0);
-  //struct pcb *p1 = (struct pcb *)p1;
+  dprintf("in switchfunc_normal...", 1);
+  struct pcb *p1 = (struct pcb *)p1;
   struct pcb *p2 = (struct pcb *)pcb2;
-  //debug_page_table((struct pte *)ReadRegister(REG_PTR1), 1); //TODO:tmp
-
-  // Set regs & psr
-  p2->frame->pc = p2->pc_next;
-  p2->frame->sp = p2->sp_next;
-  p2->frame->psr = p2->psr_next;
-
+  // save context of current process
+  // we want to save a COPY, not just the pointer!
+  *(p1->context) = *ctxp;
+  // update machine with page table of new process
+  dprintf("about to write new page table address", 1);
   page_table0_p = p2->page_table_p;
-  dprintf("about to write new page table address", 0);
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
-
-  dprintf("about to flush..", 0);
+  // clear out old entries
+  dprintf("about to flush..", 1);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
-
+  //TODO: not sure if this is right
+  // Set regs & psr
+  if (p2->frame != NULL) {
+    p2->frame->pc = p2->pc_next;
+    p2->frame->sp = p2->sp_next;
+    p2->frame->psr = p2->psr_next;
+    /*p2->frame = NULL;*/
+    /*p2->pc_next = NULL;*/
+    /*p2->sp_next = NULL;*/
+    /*p2->psr_next = -1;*/
+  }
+  // return context of pcb2
+  // this context needs to have been created by a call to context switch
   return ctxp;
 }
 
@@ -474,12 +454,12 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
  * ctxp - ctx of p2
  */
 SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
-  dprintf("in initswitchfunction...", 0);
-  fflush(stdout);
+  dprintf("in initswitchfunction...", 1);
 
   // Get page table
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
+  p->context = ctxp;
   //page_table = init_page_table0(page_table);
 
   //clone_page_table(page_table0_p, &page_table);
@@ -503,40 +483,48 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
 
 
 /*
- * Gets a process from ready or idle process
+ * Switch the current pcb to the next process in the ready queue.
+ * If no process is ready, switch to the idle process
  */
 void get_next_ready_process(struct pte *page_table) {
-  dprintf("in get next ready process...", 0);
+  dprintf("in get next ready process...", 1);
   elem *e;
   e = dequeue(p_ready);
-  // no ready process, switch to idle
+  // if no ready process, switch to idle
   if (NULL == e) {
-    dprintf("switching idle...", 0);
-    // current process free'd
+    dprintf("switching idle...", 1);
+    // check if current process is free'd (exit)
     if (NULL == pcb_current) {
-      dprintf("current proccess no longer exists", 0);
-      // context switch into idle
+      dprintf("current proccess no longer exists", 1);
+      // context switch into idle. Orignal program no longer exists
       if (0 > ContextSwitch(switchfunc_normal, pcb_idle->context, NULL , pcb_idle)) {
         unix_error("failed context switch");
       }
-      // page table of old process can now safely be free'd
-      dprintf("freeing old page table...", 0);
-      /*free(page_table); //TODO*/
+      // context switched to idle and old program has terminated.
+      // should now be safe to free to old page tables
+      dprintf("freeing old page table...", 1);
+      free(page_table); //TODO
       dprintf("finished freeing old page table...", 0);
     } else {
-      // current process is running but delayed or etc.
+      // current process is running but delayed
+      // it is already in the delay queue and just needs to be contex switched out
       if (0 > ContextSwitch(switchfunc_normal, pcb_current->context, pcb_current, pcb_idle)) {
         unix_error("failed context switch");
       }
     }
-    dprintf("about to switch to idle...", 0);
+    // finished context switching, now set the current pcb to idle to complete the switch
+    dprintf("activating pcb of idle...", 1);
     pcb_current = pcb_idle;
   } else {
-    // switch to process in ready
+    // there is a process waiting to run so run that instead of idle
+    dprintf("found a ready process...", 1);
+    // switch to the new process, and save state of old process
     if (0 > ContextSwitch(switchfunc_normal, pcb_current->context, pcb_current, e->value)) {
       unix_error("failed context switch");
     }
+    // finish context switching, set current pcb to new process
+    dprintf("activating pcb of ready ...", 1);
     pcb_current = (struct pcb *)e->value;
   }
-  dprintf("exit get_next_ready_process", 0);
+  dprintf("exit get_next_ready_process", 1);
 }

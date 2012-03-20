@@ -62,7 +62,7 @@ interrupt_kernel(ExceptionStackFrame *frame) {
  * Clock interrupt decrements everything in the delay queue
  */
 void interrupt_clock(ExceptionStackFrame *frame){
-	/*printf("got clock interrupt...\n");*/
+  printf("got clock interrupt...\n");
   /*
    * Go through all the processors in waiting queue and decrement time delay.
    * If one reaches 0, move to ready queue.
@@ -70,6 +70,7 @@ void interrupt_clock(ExceptionStackFrame *frame){
   int i;
   elem *elem_c;
   struct pcb *pcb_p;
+  struct pcb *pcb_tmp;
   elem_c = p_delay->head;
 
   // decrement items in delay queue
@@ -78,20 +79,23 @@ void interrupt_clock(ExceptionStackFrame *frame){
     pcb_p = (struct pcb *)elem_c->value;
     // decrement delay queue processors
     pcb_p->time_delay = pcb_p->time_delay - 1;
+    // process finished delaying, put back in ready
     if (pcb_p->time_delay <= 0) {
-      //TODO: remove it from delay
-      // add removed process to ready
-    }
-    // context switch if process has been running for longer then 2 clock ticks
-    pcb_p->time_current = pcb_p->time_current + 1;
-    // don't context switch if idle is the only process
-    if ((2 <= pcb_p->time_current) && (0 >= p_ready->len)) {
-      // we need to reset the current time and put it into ready
-      pcb_p->time_current = 0;
-      enqueue(p_ready, (void *)pcb_p);
-      get_next_ready_process(pcb_current->page_table_p);
+      printf("move element from delay into ready...\n");
+      pcb_tmp = (struct pcb *)pop(p_delay, pcb_p);
+      enqueue(p_ready, (void *) pcb_tmp);
     }
     elem_c = elem_c->next;
+  } // end for loop
+  // context switch if process has been running for longer then 2 clock ticks
+  pcb_current->time_current = pcb_current->time_current + 1;
+  // don't context switch if idle is the only process
+  if ((2 <= pcb_current->time_current) && (0 <= p_ready->len)) {
+    // we need to reset the current time and put it into ready
+    pcb_current->time_current = 0;
+    // NEVER stick idle in queue
+    if (pcb_current != pcb_idle) enqueue(p_ready, (void *)pcb_current);
+    get_next_ready_process(pcb_current->page_table_p);
   }
 }
 

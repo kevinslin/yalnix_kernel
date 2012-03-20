@@ -13,20 +13,17 @@ void Exit(int status) {
 	//ExceptionStackFrame *frame = pcb_current->frame;
 	page_table = terminate_pcb(pcb_current); //FIXME: implement
 	get_next_ready_process(page_table);
-	//exit(1); //FIXME: right?
+	exit(status); //FIXME: right?
 }
 
 int Delay(int clock_ticks) {
 	// set delay on current proccess
-	/*printf("[info]:clock_ticks: %i\n", clock_ticks);*/
   if (0 == clock_ticks) return 0;
   if (0 > clock_ticks) return ERROR;
   pcb_current->time_delay = clock_ticks;
 
 	// Put current process in delay
-	if (0 > enqueue(p_delay, (void *) pcb_current)) {
-		unix_error("error enqueing process!");
-	}
+	if (0 > enqueue(p_delay, (void *) pcb_current)) return ERROR;
 	get_next_ready_process(pcb_current->page_table_p);
 	return 0;
 }

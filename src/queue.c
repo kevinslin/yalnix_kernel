@@ -40,17 +40,12 @@ int enqueue(queue *q, void *value) {
  * Pop value from queue or return null
  */
 void *pop(queue *q, void *value) {
-  printf("in pop...\n");
   int i;
   elem *elem_c;
 
   elem_c = q->head;
   for (i=0; i< q->len; i++) {
-    printf("in for loop\n");
-    printf("value: %p\n", value);
-    printf("elem: %p\n", elem_c->value);
     if (value == elem_c->value) {
-      printf("found value...\n"); // one element queue
       if (1 == q->len) {
         q->head = NULL;
         q->tail = NULL;
@@ -61,7 +56,6 @@ void *pop(queue *q, void *value) {
         q->head->prev = NULL;
       }
       else if (q->tail == elem_c) {
-        printf("found a tail...\n");
         q->tail = elem_c->prev;
         q->tail->next = NULL;
       }

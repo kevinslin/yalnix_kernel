@@ -112,6 +112,9 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   num_frames = pmem_size / PAGESIZE;
   assert(num_frames > 0); // silly...
 
+  /* Set the heap limit */
+  KERNEL_HEAP_LIMIT = orig_brk; // top of the heap
+  page_brk = VMEM_1_LIMIT - PAGESIZE; // top of region 1 table
 
   /* Create physical frames */
   dprintf("initializing frames...", 0);
@@ -122,9 +125,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   p_waiting = create_queue();
   p_delay = create_queue();
 
-  /* Etc */
-  KERNEL_HEAP_LIMIT = orig_brk;
-  page_brk = VMEM_1_LIMIT - PAGESIZE;
 
   /* Initialize interrupt vector table */
   for (i=0; i < TRAP_VECTOR_SIZE; i++) {
@@ -233,11 +233,10 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   printf("IDLE process\n");
   printf(DIVIDER);
   // Create an idle process
-  dprintf("create idle process...", 0);
+  dprintf("create idle process...", 1);
   /*struct pte *idle_page_table;*/
   pcb_idle = Create_pcb(NULL);
   pcb_idle->name = "idle process";
-
 
   // Saved context
   dprintf("about to create context...", 0);
@@ -252,10 +251,8 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   ContextSwitch(initswitchfunction, pcb_idle->context, (void *)pcb_idle, NULL);
 
   // Load the idle program
-  dprintf("about to load idle...", 0);
-  if(LoadProgram("idle", cmd_args, frame, &pcb_current) != 0) {
-    unix_error("error loading program!");
-  }
+  dprintf("about to load idle...", 1);
+  if(LoadProgram("idle", cmd_args, frame, &pcb_current) != 0) unix_error("error loading program!");
 
   // Set pcb
   pcb_idle->pc_next = frame->pc;
@@ -301,14 +298,17 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
     unix_error("error context switching!");
   }
   dprintf("about to load init...", 0);
-  if(LoadProgram("init", cmd_args, frame, &pcb_current) != 0) {
-    unix_error("error loading program!");
-  }
+  if(LoadProgram("init", cmd_args, frame, &pcb_current) != 0) unix_error("error loading program!");
+
+  // Set pcb
+  /*pcb_current->pc_next = frame->pc;*/
+  /*pcb_current->sp_next = frame->sp;*/
+  /*pcb_current->psr_next = frame->psr;*/
+  /*pcb_current->frame = frame;*/
+
   debug_pcb(pcb_current);
-  debug_page_table(pcb_idle->page_table_p, 0);
   dprintf("finished loading init...", 0);
   fflush(stdout);
-
   dprintf("done starting kernel!", 0);
 }
 
