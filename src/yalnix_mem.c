@@ -376,7 +376,6 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
  */
 SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   dprintf("in switchfunc_idle...", 1);
-  int i;
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
   // save context
@@ -384,64 +383,7 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   *(p->context) = *ctxp;
   page_table = p->page_table_p;
 
-  // copy kernel stack
-  int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
-  int kernel_base = get_page_index(KERNEL_STACK_BASE);
-  int free_frame;
-  // check we have enough free memory to allocate new kernel stack
-  /*debug_frames(0);*/
-  // kernel stack is 4 pages long
-  if (4 > len_free_frames()){
-    unix_error("don't have enough physical space to create new process");
-  }
-  dprintf("about to copy kernel stack...", 0);
-  // copy kernel stack
-  for(i=kernel_base; i<kernel_limit; i++) {
-    printf("i:%i\n", i);
-    // Allocate space for kernel frame of idle
-    free_frame = get_free_frame();
-    (page_table + i)->valid = (page_table0_p + i)->valid;
-    (page_table + i)->pfn = free_frame;
-    (page_table + i)->kprot = (page_table0_p + i)->kprot;
-    (page_table + i)->uprot = (page_table0_p + i)->uprot;
-
-    // Point restricted zone of region1 to point to same vpn as idle
-    int ephermal_buffer_index = get_page_index(EPHERMAL_BUFFER);
-    (page_table1_p +  ephermal_buffer_index)->valid = PTE_VALID;
-    (page_table1_p + ephermal_buffer_index)->kprot = (PROT_READ | PROT_WRITE);
-    (page_table1_p + ephermal_buffer_index)->uprot = PROT_NONE;
-    (page_table1_p + ephermal_buffer_index)->pfn = free_frame;
-    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE));
-
-    // Get pointers to copy current region0 kernel stack into restricted zone
-    void *src = (void *)((((long)(page_table0_p + i) * PAGESIZE) & PAGEMASK3) >> 12);
-    void *dst = (void *)EPHERMAL_BUFFER;
-
-    printf("src is: %p\n", src);
-    printf("dst is: %p\n", dst);
-    memcpy(dst, src , PAGESIZE);
-
-    // set restricted zone to no longer valid
-    (page_table1_p + ephermal_buffer_index)->valid = PTE_INVALID;
-    (page_table1_p + ephermal_buffer_index)->kprot = PROT_NONE;
-    (page_table1_p + ephermal_buffer_index)->uprot = PROT_NONE;
-    (page_table1_p + ephermal_buffer_index)->pfn = PFN_INVALID;
-    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE));
-
-    /*printf("address: %x\n", EPHERMAL_BUFFER);*/
-    /*printf("page index: %li\n", get_page_index(EPHERMAL_BUFFER));*/
-    /*printf("page memory: %x\n", get_page_mem(get_page_index(EPHERMAL_BUFFER)));*/
-
-    /*printf("address: %x\n", page_table0_p + i);*/
-    /*printf("page memory: %x\n", get_page_mem(i));*/
-
-    printf("init: %x\n", (void *) page_table0_p + i);
-    printf("idle: %x\n", (void *) page_table + i);
-
-
-    /*memcpy( get_page_mem(page_table + i), get_page_mem(page_table0_p + i), PAGESIZE);*/
-    /*memcpy( (void *)(((long)(page_table + i) & PAGEMASK_REVERSE) << PAGESHIFT), (void *)(((long)(page_table0_p + i) & PAGEMASK_REVERSE) << PAGESHIFT), PAGESIZE);*/
-  }
+  extract_page_table(page_table, page_table0_p);
 
   printf("idle process..\n");
   debug_page_table(page_table, 0);
@@ -469,22 +411,15 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
  */
 SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
   dprintf("in switchfunc_idle...", 1);
-  int i;
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table;
   // save context
   memcpy(p->context, ctxp, sizeof(ExceptionStackFrame));
   page_table = p->page_table_p; // should be a completely reset page table
-  // extract kernel stack
-  int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
-  int kernel_base = get_page_index(KERNEL_STACK_BASE);
-  for(i=kernel_base; i<=kernel_limit; i++) {
-    (page_table + i)->valid = (page_table0_p + i)->valid;
-    (page_table + i)->pfn = (page_table0_p + i)->pfn;
-    (page_table + i)->kprot = (page_table0_p + i)->kprot;
-    (page_table + i)->uprot = (page_table0_p + i)->uprot;
-  }
-  debug_page_table(page_table,1);
+
+  extract_page_table(page_table, page_table0_p);
+  debug_page_table(page_table,0);
+
   // Update register & flush
   page_table0_p = page_table;
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
@@ -601,4 +536,73 @@ void get_next_ready_process(struct pte *page_table) {
     pcb_current = (struct pcb *)e->value;
   }
   dprintf("exit get_next_ready_process", 1);
+}
+
+
+/*
+ * Inherit page table of sr
+ */
+void
+extract_page_table(struct pte *page_table_dst, struct pte *page_table_src) {
+  dprintf("extracting page table...", 1);
+  int i;
+  int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
+  int kernel_base = get_page_index(KERNEL_STACK_BASE);
+  // extract kernel stack by pointing to same physical address
+  for(i=kernel_base; i<=kernel_limit; i++) {
+    (page_table_dst + i)->valid = (page_table_src + i)->valid;
+    (page_table_dst + i)->pfn = (page_table_src + i)->pfn;
+    (page_table_dst + i)->kprot = (page_table_src + i)->kprot;
+    (page_table_dst + i)->uprot = (page_table_src + i)->uprot;
+  }
+}
+
+void
+clone_page_table_alt(struct pte *page_table_dst, struct pte *page_table_src) {
+  int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
+  int kernel_base = get_page_index(KERNEL_STACK_BASE);
+  int free_frame;
+  int i;
+
+  // check we have enough free memory to allocate new kernel stack
+  if (4 > len_free_frames()) unix_error("don't have enough physical space to create new process");
+
+  dprintf("about to copy kernel stack...", 0);
+  // copy kernel stack
+  for(i=kernel_base; i<kernel_limit; i++) {
+    printf("i:%i\n", i);
+
+    // allocate free space
+    free_frame = get_free_frame();
+    (page_table_dst + i)->valid = (page_table_src + i)->valid;
+    (page_table_dst + i)->pfn = free_frame;
+    (page_table_dst + i)->kprot = (page_table_src + i)->kprot;
+    (page_table_dst + i)->uprot = (page_table_src + i)->uprot;
+
+    // Point restricted zone of region1 to point to same vpn as idle
+    int ephermal_buffer_index = get_page_index(EPHERMAL_BUFFER);
+    (page_table1_p +  ephermal_buffer_index)->valid = PTE_VALID;
+    (page_table1_p + ephermal_buffer_index)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table1_p + ephermal_buffer_index)->uprot = PROT_NONE;
+    (page_table1_p + ephermal_buffer_index)->pfn = free_frame;
+    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE));
+
+    // Get pointers to copy current region0 kernel stack into restricted zone
+    void *src = (void *)((((long)(page_table_src + i) * PAGESIZE) & PAGEMASK3) >> 12);
+    void *dst = (void *)EPHERMAL_BUFFER;
+    memcpy(dst, src , PAGESIZE);
+    /*printf("src is: %p\n", src);*/
+    /*printf("dst is: %p\n", dst);*/
+    // set restricted zone to no longer valid
+    (page_table1_p + ephermal_buffer_index)->valid = PTE_INVALID;
+    (page_table1_p + ephermal_buffer_index)->kprot = PROT_NONE;
+    (page_table1_p + ephermal_buffer_index)->uprot = PROT_NONE;
+    (page_table1_p + ephermal_buffer_index)->pfn = PFN_INVALID;
+    WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE));
+  }
+
+  printf("dump kernel stack...\n");
+  for (i=kernel_base; i<kernel_limit; i++) {
+    printf("%i: %x\n", i, *(int *)get_page_mem(i));
+  }
 }

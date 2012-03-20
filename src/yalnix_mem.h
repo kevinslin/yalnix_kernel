@@ -142,6 +142,8 @@ SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 ); //DEPRECI
 /* Misc Functions */
 int get_next_pid();
 void get_next_ready_process(struct pte *page_table);
+void extract_page_table(struct pte *page_table_dst, struct pte *page_table_src);
+void clone_page_table_alt(struct pte *page_table_dst, struct pte *page_table_src);
 
 
 #endif	/* end _yalnix_mem_h */
