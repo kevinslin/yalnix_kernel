@@ -49,6 +49,7 @@ KERNEL_SRCS = yalnix_kernel.c queue.c simpleutils.c yalnix_interrupts.c yalnix_m
 #
 
 PUBLIC_DIR = /clear/courses/comp421/pub
+#PUBLIC_DIR = /Users/kevinlin/Dropbox/School/comp421/labs/lab2
 
 CPPFLAGS = -I$(PUBLIC_DIR)/include
 CFLAGS = -g -Wall

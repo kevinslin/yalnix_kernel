@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# link-user -o yalnix $(KERNEL_OBJS)
+
+yalnixlibdir=${YALNIXLIBDIR:-/clear/courses/comp421/pub/lib}
+yalnixbindir=${YALNIXBINDIR:-/clear/courses/comp421/pub/bin}
+gcclibdir=${GCCLIBDIR:-/usr/lib/gcc/x86_64-redhat-linux/4.1.2}
+ldscriptdir=${LDSCRIPTDIR:-$yalnixlibdir}
+
+/usr/bin/ld -m elf_x86_64 --script=${ldscriptdir}/yalnix-user.xc \
+	-static --hash-style=gnu ${yalnixlibdir}/crt1.o \
+	${yalnixlibdir}/crti.o ${gcclibdir}/crtbeginT.o\
+	--no-omagic -z max-page-size=4096 \
+	--no-whole-archive "$@" ${gcclibdir}/libstdc++.a -lm \
+	${yalnixlibdir}/support-user.o \
+	${yalnixlibdir}/libuser.a \
+	--start-group ${gcclibdir}/libgcc.a \
+	${gcclibdir}/libgcc_eh.a ${yalnixlibdir}/libc.a \
+	--end-group ${gcclibdir}/crtend.o ${yalnixlibdir}/crtn.o
+
+${yalnixbindir}/abifix "$2"

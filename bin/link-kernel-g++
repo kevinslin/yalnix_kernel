@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# link-kernel -o yalnix $(KERNEL_OBJS)
+
+yalnixlibdir=${YALNIXLIBDIR:-/clear/courses/comp421/pub/lib}
+gcclibdir=${GCCLIBDIR:-/usr/lib/gcc/x86_64-redhat-linux/4.1.2}
+ldscriptdir=${LDSCRIPTDIR:-$yalnixlibdir}
+
+/usr/bin/ld -m elf_x86_64 --script=${ldscriptdir}/yalnix-kernel.xc \
+	-static --hash-style=gnu ${yalnixlibdir}/crt1.o \
+	${yalnixlibdir}/crti.o ${gcclibdir}/crtbeginT.o\
+	--no-omagic -z max-page-size=4096 \
+	--no-whole-archive "$@" ${gcclibdir}/libstdc++.a -lm \
+	${yalnixlibdir}/support-kernel.o \
+	${yalnixlibdir}/libkernel.a \
+	--start-group ${gcclibdir}/libgcc.a \
+	${gcclibdir}/libgcc_eh.a ${yalnixlibdir}/libc.a \
+	--end-group ${gcclibdir}/crtend.o ${yalnixlibdir}/crtn.o
