@@ -30,9 +30,9 @@ interrupt_kernel(ExceptionStackFrame *frame) {
 			break;
 		case YALNIX_WAIT:
       dprintf("syscall wait...", 0);
-      result = Wait((int *)frame->regs[1]);
-      dprintf("got back from wait...", 0);
-      frame->regs[0] = result;
+      /*result = Wait((int *)frame->regs[1]);*/
+      /*dprintf("got back from wait...", 0);*/
+      /*frame->regs[0] = result;*/
 			break;
 		case YALNIX_GETPID:
 			printf("syscall getting pid...\n");

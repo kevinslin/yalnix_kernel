@@ -5,8 +5,8 @@
 int
 main() {
   for (;;){
+    printf("idling...");
     //Pause();
-    printf("idling...\n");
   }
   return 1;
 }

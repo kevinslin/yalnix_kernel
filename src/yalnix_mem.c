@@ -61,13 +61,17 @@ debug_frames(int verbosity) {
 void debug_pcb(struct pcb *pcb_p) {
   printf(DIVIDER);
   printf("dumping pcb...\n");
-  debug_page_table(pcb_p->page_table_p, 1);
+  /*debug_page_table(pcb_p->page_table_p, 0);*/
   printf("pid: %i\n", pcb_p->pid);
   printf("brk index: %i\n", pcb_p->brk_index);
   printf("stack limit index: %i\n", pcb_p->stack_limit_index);
   printf("pte virtual: %p\n", pcb_p->page_table_p);
   printf("pte physical: %p\n", pcb_p->page_table_p_physical);
-  printf("name: %s\n", pcb_p->name);
+  /*if (NULL == pcb_p->context)*/
+    /*printf("context: NULL\n");*/
+  /*else*/
+    /*printf("context: %p\n", pcb_p->context);*/
+  /*printf("name: %s\n", pcb_p->name);*/
   printf(DIVIDER);
 /*struct pcb{*/
   /*unsigned int pid;*/
@@ -99,9 +103,11 @@ initialize_frames(int num_frames) {
 	int i;
   // set global NUM_FRAMES variable
 	NUM_FRAMES = num_frames;
+
   // malloc frames
 	frames_p = (page_frames *)malloc( sizeof(page_frames) * NUM_FRAMES );
 	if (frames_p == NULL) unix_error("can't malloc frames");
+
   // set all to free
   for (i=0; i<NUM_FRAMES; i++) {
 		(*(frames_p + i)).free = FRAME_FREE;
@@ -142,6 +148,7 @@ get_free_frame() {
       return i;
 		}
 	}
+  printf("did not find free frame!\n");
   return -1;
 }
 
@@ -150,18 +157,39 @@ get_free_frame() {
 /*
  * Create page table
  */
-struct pte *create_page_table(struct pcb *p) {
+struct pte *create_page_table() {
   // find free frame for page table
-  int frame = get_free_frame();
-  if (0 > get_free_frame) return NULL;
-  // book keeping
-  set_frame(frame, FRAME_NOT_FREE);
-  // store physical address of pte in pcb
-  p->page_table_p_physical = get_page_mem(frame);
-  p->page_table_p = (page_table1_p + PAGE_TABLE_LEN) - 2;
-  // reset page talbe
-  /*if (0 > reset_page_table(p->page_table_p)) return NULL;*/
-  return p->page_table_p;
+  /*long page_brk = VMEM_1_LIMIT - PAGESIZE;*/
+  long old = DOWN_TO_PAGE(page_brk) / PAGESIZE;
+  page_brk -= PAGESIZE;
+  long new = DOWN_TO_PAGE(page_brk) / PAGESIZE;
+  if (old == new) {
+    return create_page_table_helper((void *)page_brk);
+  }
+  if ((frames_p + new)->free == FRAME_NOT_FREE) {
+    unix_error("can't create page table");
+  } else {
+    set_frame(new, FRAME_FREE);
+    int offset = new - (VMEM_1_BASE / PAGESIZE);
+    (page_table1_p + offset)->valid = PTE_VALID;
+    (page_table1_p + offset)->pfn = new;
+    (page_table1_p + offset)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table1_p + offset)->uprot = PROT_NONE;
+    return create_page_table_helper((void *)page_brk);
+  }
+  return NULL;
+}
+
+struct pte *create_page_table_helper(void * brk) {
+  struct pte *page_table;
+  if (NULL == brk) {
+    page_table = (struct pte *)malloc(PAGE_TABLE_SIZE);
+    if (NULL == page_table) unix_error("can't malloc page table");
+  } else {
+    page_table = (struct pte *)brk;
+  }
+  reset_page_table(page_table);
+  return page_table;
 }
 
 /*
@@ -204,21 +232,14 @@ struct pte *reset_page_table(struct pte *page_table) {
   dprintf("in reset_page_table", 0);
   int i;
   for (i=0; i<PAGE_TABLE_LEN; i++) {
-    // if page was valid, free the frame
-    printf("i:%i, mem: %p\n", i, page_table + i);
-    printf("before: 0x%x\n", *(page_table + i));
     *(page_table + i) = pte_null;
-    printf("after reset: 0x%x\n", *(page_table + i));
     if ((page_table + i)->valid == PTE_VALID) {
-      printf("page table reset");
       set_frame((page_table + i)->pfn, FRAME_FREE);
     }
     (page_table + i)->pfn = PFN_INVALID;
     (page_table + i)->valid = PTE_INVALID;
     (page_table + i)->uprot = PROT_NONE;
     (page_table + i)->kprot = PROT_NONE;
-    printf("after initialization: 0x%x\n", *(page_table + i));
-    /*printf("after: %p\n", (void *) page_table + i);*/
   }
   return page_table;
 }
@@ -275,6 +296,7 @@ struct pcb *create_pcb(struct pcb *parent) {
  * Don't free page tables, they are free'd in terminate_page_table
  */
 int free_pcb(struct pcb *pcb_p) {
+  dprintf("freeing pcb...", 0);
   free(pcb_p->children_wait);
   free(pcb_p->children_active); //TODO: free elemetns in queue
   free(pcb_p->context);
@@ -427,19 +449,14 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   //debug_page_table((struct pte *)ReadRegister(REG_PTR1), 1); //TODO:tmp
 
   // Set regs & psr
-  /*p2->frame->pc = p2->pc_next;*/
-  /*p2->frame->sp = p2->sp_next;*/
-  /*p2->frame->psr = p2->psr_next;*/
+  p2->frame->pc = p2->pc_next;
+  p2->frame->sp = p2->sp_next;
+  p2->frame->psr = p2->psr_next;
 
-  // Set pcb to new process
-  pcb_current = p2;
-  debug_pcb(p2);
-  /*// Put p1 into queue*/
-  /*enqueue(p_delay, (void *)p1);*/
-  // switch region0 table to p2
-
+  page_table0_p = p2->page_table_p;
   dprintf("about to write new page table address", 0);
-  WriteRegister( REG_PTR0, (RCS421RegVal) p2->page_table_p);
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
+
   dprintf("about to flush..", 0);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
 
@@ -463,6 +480,9 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   // Get page table
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
+  //page_table = init_page_table0(page_table);
+
+  //clone_page_table(page_table0_p, &page_table);
   page_table = init_page_table0(page_table);
 
   // debug
@@ -470,7 +490,8 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2){
   debug_page_table(page_table, 1);
   // Update current page table
   dprintf("writing ptr0 reg...", 0);
-  WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
+  page_table0_p = page_table;
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
 
   // flush out old entries
   if (VM_ENABLED) {
@@ -494,21 +515,21 @@ void get_next_ready_process(struct pte *page_table) {
     // current process free'd
     if (NULL == pcb_current) {
       dprintf("current proccess no longer exists", 0);
-      debug_pcb(pcb_idle);
       // context switch into idle
-      if (0 > ContextSwitch(switchfunc_normal, pcb_idle->context, NULL, pcb_idle)) {
+      if (0 > ContextSwitch(switchfunc_normal, pcb_idle->context, NULL , pcb_idle)) {
         unix_error("failed context switch");
       }
       // page table of old process can now safely be free'd
       dprintf("freeing old page table...", 0);
-      free(page_table);
+      /*free(page_table); //TODO*/
+      dprintf("finished freeing old page table...", 0);
     } else {
-      // switch current process
+      // current process is running but delayed or etc.
       if (0 > ContextSwitch(switchfunc_normal, pcb_current->context, pcb_current, pcb_idle)) {
         unix_error("failed context switch");
       }
     }
-    dprintf("finished switching...", 0);
+    dprintf("about to switch to idle...", 0);
     pcb_current = pcb_idle;
   } else {
     // switch to process in ready
@@ -517,5 +538,5 @@ void get_next_ready_process(struct pte *page_table) {
     }
     pcb_current = (struct pcb *)e->value;
   }
-  dprintf("exit terminate pcb", 0);
+  dprintf("exit get_next_ready_process", 0);
 }

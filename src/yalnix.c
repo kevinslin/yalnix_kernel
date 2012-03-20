@@ -37,8 +37,8 @@ struct pte *page_table1_p = page_table1;
     make sure to TLB_FLUSH_1
 */
 int SetKernelBrk(void *addr) {
-  int kernel_heap_limit_index;
-  int addr_index;
+  long kernel_heap_limit_index;
+  long addr_index;
   int pages_needed;
   int i;
   int frame;
@@ -48,23 +48,20 @@ int SetKernelBrk(void *addr) {
 
   // if vm enabled, then look for free frames to hold space
   if (VM_ENABLED) {
-    dprintf("vm has been enabled", 0);
-    kernel_heap_limit_index = get_page_index(KERNEL_HEAP_LIMIT);
-    addr_index = get_page_index(addr);
+    //kernel_heap_limit_index = get_page_index(KERNEL_HEAP_LIMIT);
+    kernel_heap_limit_index = UP_TO_PAGE(KERNEL_HEAP_LIMIT)/PAGESIZE;
+    addr_index = UP_TO_PAGE(addr)/PAGESIZE;
     pages_needed = addr_index - kernel_heap_limit_index;
-    printf("pages needed: %i\n", pages_needed);
     // the kernel heap is not big enough to hold requested memory
     if (pages_needed > 0) {
-      // find free pages to map memory into
+      // check if we have enough physical emmory
       if (len_free_frames() >= pages_needed) {
-        printf("free pages: %i\n", len_free_frames());
         for (i = 0; i < pages_needed; i++) {
           frame = get_free_frame();
           (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET + i)->valid = PTE_VALID;
           (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET + i)->pfn = frame;
           (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET + i)->uprot = PROT_NONE;
           (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET + i)->kprot = (PROT_READ | PROT_WRITE);
-          // flush the tlb after every iteration to be safe
           WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_1);
         }
         // update kernel heap limit
@@ -72,21 +69,25 @@ int SetKernelBrk(void *addr) {
         dprintf("finished allocating memory", 0);
         return 0;
       } else {
-        // we don't have neough free frames, so let's overwrite existing frames
-        //BUG(?): (we set page table entry to invalid but how does this memory get accessed?)
-        for (i = 0; i < pages_needed; i++) {
-          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->valid = PTE_INVALID;
-          set_frame((page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->pfn, FRAME_FREE);
-          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->pfn = 0;
-          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->uprot = PROT_NONE;
-          (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->kprot = PROT_NONE;
-          WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_1);
-        }
-        //BUG(?): more details needed
+        // don't have enough frames
         return ERROR;
       }
+    } else {
+      // call to free
+      pages_needed = kernel_heap_limit_index - addr_index; // heap higher than addr
+      for (i = 0; i < pages_needed; i++) {
+        // free'd pages are invalid
+        (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->valid = PTE_INVALID;
+        set_frame((page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->pfn, FRAME_FREE);
+        (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->pfn = 0;
+        (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->uprot = PROT_NONE;
+        (page_table1_p + kernel_heap_limit_index - TABLE1_OFFSET - i)->kprot = PROT_NONE;
+        WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_1);
+      }
+      KERNEL_HEAP_LIMIT = addr;
+      return 0;
     } // end of pages_needed
- } else {
+  } else {
     // vm is disabled, just move brk pointer up
     KERNEL_HEAP_LIMIT = addr;
   }
@@ -103,7 +104,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   int kernel_heap_limit_index;
   int kernel_text_limit_index;
   struct pte page_table0[NUM_FRAMES];
-  struct pte *page_table0_p;
 
   /* TMP */
   args_copy = cmd_args; //TODO: hack!
@@ -112,17 +112,19 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   num_frames = pmem_size / PAGESIZE;
   assert(num_frames > 0); // silly...
 
-  // keep track of current kernel heap in global var
-  KERNEL_HEAP_LIMIT = orig_brk;
 
   /* Create physical frames */
+  dprintf("initializing frames...", 0);
   initialize_frames(num_frames);
-  page_table0_p = (struct pte *)malloc(sizeof(struct pte) * PAGE_TABLE_LEN);
 
   // create process queues
   p_ready = create_queue();
   p_waiting = create_queue();
   p_delay = create_queue();
+
+  /* Etc */
+  KERNEL_HEAP_LIMIT = orig_brk;
+  page_brk = VMEM_1_LIMIT - PAGESIZE;
 
   /* Initialize interrupt vector table */
   for (i=0; i < TRAP_VECTOR_SIZE; i++) {
@@ -192,6 +194,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
     set_frame(i, FRAME_NOT_FREE);
   }
   // Initialize kernel stack of pt 0 to valid
+  page_table0_p = create_page_table();
   page_table0_p = init_page_table0(page_table0_p);
 
   /* Debug region values*/
@@ -199,8 +202,8 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   printf("pmem: %u\n", pmem_size);
   printf("free frames: %i\n", len_free_frames());
   printf(DIVIDER);
-  debug_page_table(page_table0_p, 1);
-  debug_page_table(page_table1_p, 1);
+  debug_page_table(page_table0_p, 0);
+  debug_page_table(page_table1_p, 0);
   printf(DIVIDER);
   printf("heap limit: %p\n", (void *)KERNEL_HEAP_LIMIT);
   printf("text limit: %p\n", &_etext);
@@ -226,27 +229,27 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   // Create idle process
   /**************************************/
+  printf(DIVIDER);
+  printf("IDLE process\n");
+  printf(DIVIDER);
   // Create an idle process
   dprintf("create idle process...", 0);
   /*struct pte *idle_page_table;*/
   pcb_idle = Create_pcb(NULL);
-  pcb_idle->pc_next = frame->pc;
-  pcb_idle->sp_next = frame->sp;
-  pcb_idle->psr_next = frame->psr;
-  pcb_idle->frame = frame;
   pcb_idle->name = "idle process";
 
 
   // Saved context
+  dprintf("about to create context...", 0);
   SavedContext *ctx = (SavedContext *)malloc(sizeof(SavedContext));
   pcb_idle->context = ctx;
 
   // Set page table to initialized table
-  pcb_idle->page_table_p = page_table0_p;
+  pcb_idle->page_table_p = create_page_table();
   pcb_current = pcb_idle;
 
   // Initialzed context
-  ContextSwitch(switchfunc_nop, pcb_idle->context, (void *)pcb_idle, NULL);
+  ContextSwitch(initswitchfunction, pcb_idle->context, (void *)pcb_idle, NULL);
 
   // Load the idle program
   dprintf("about to load idle...", 0);
@@ -254,14 +257,20 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
     unix_error("error loading program!");
   }
 
+  // Set pcb
+  pcb_idle->pc_next = frame->pc;
+  pcb_idle->sp_next = frame->sp;
+  pcb_idle->psr_next = frame->psr;
+  pcb_idle->frame = frame;
+
   debug_pcb(pcb_current);
-  debug_page_table(pcb_idle->page_table_p, 1);
-  printf("finished loading program...\n");
+  debug_page_table(pcb_idle->page_table_p, 0);
+  printf("finished loading idle...\n");
   fflush(stdout);
 
-  // TMP(uneccessary)
-  WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0); // flush works fine here
-
+  printf(DIVIDER);
+  printf("INIT process\n");
+  printf(DIVIDER);
   // Load init
   /******************************************/
   // Create init program
@@ -276,32 +285,18 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   // Initiate page table
   dprintf("creating page tables for init...", 0);
-  init_page_table = create_page_table(pcb_init);
-  debug_pcb(pcb_init);
-
-  pcb_init->page_table_p->valid = PTE_VALID;
-  pcb_init->page_table_p->pfn = get_page_index(pcb_init->page_table_p_physical);
-  pcb_init->page_table_p->kprot = (PROT_READ | PROT_WRITE);
-  pcb_init->page_table_p->uprot = (PROT_READ | PROT_WRITE);
-  dprintf("finished creating page tables for init...", 0);
-
-  if (NULL == init_page_table) unix_error("error creating page table!");
-  debug_page_table(page_table1_p, 1);
-  printf("init page table: %p\n", init_page_table);
-  printf("pcb page table physical : %p\n", pcb_init->page_table_p_physical);
-  reset_page_table(init_page_table);
-  init_page_table = init_page_table0(init_page_table);
-  /*pcb_init->page_table_p = init_page_table;*/
+  init_page_table = create_page_table();
+  pcb_init->page_table_p = init_page_table;
 
   // Saved context
+  dprintf("about to create context...", 0);
   SavedContext *ctx_init = (SavedContext *)malloc(sizeof(SavedContext));
   pcb_init->context = ctx_init;
 
-  /*pcb_init->page_table_p = page_table0_p;*/
   pcb_current = pcb_init;
 
   dprintf("about to context switch...", 1);
-  debug_page_table(pcb_init->page_table_p, 1);
+  debug_page_table(pcb_init->page_table_p, 0);
   if (0 > ContextSwitch(initswitchfunction, pcb_init->context, (void *)pcb_init, NULL)) {
     unix_error("error context switching!");
   }
@@ -310,9 +305,10 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
     unix_error("error loading program!");
   }
   debug_pcb(pcb_current);
-  debug_page_table(pcb_idle->page_table_p, 1);
+  debug_page_table(pcb_idle->page_table_p, 0);
   dprintf("finished loading init...", 0);
   fflush(stdout);
+
   dprintf("done starting kernel!", 0);
 }
 

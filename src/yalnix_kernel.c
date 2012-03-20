@@ -35,6 +35,7 @@ int Delay(int clock_ticks) {
  * Called when user mallocs
  */
 int Brk(void *addr){
+	dprintf("in brk...", 0);
 	int user_heap_limit_index;
 	int addr_index;
 	int pages_needed;

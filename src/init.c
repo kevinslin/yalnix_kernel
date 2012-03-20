@@ -6,16 +6,6 @@
 	int
 main(int argc, char **argv)
 {
-	printf("i'm in fork\n");
-	if (Fork() == 0) {
-		printf("hello from child\n");
-		TracePrintf(0, "CHILE\n");
-	}
-	else {
-		printf("hello from parent");
-		TracePrintf(10, "PARENT\n");
-		Delay(8);
-	}
-
+	printf("hello, i'm in init\n");
 	Exit(0);
 }

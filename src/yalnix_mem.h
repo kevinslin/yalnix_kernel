@@ -75,6 +75,8 @@ int tty_busy[NUM_TERMINALS];
 
 /* Etc */
 bool VM_ENABLED;
+long page_brk;
+struct pte *page_table0_p;
 
 
 
@@ -104,7 +106,8 @@ int len_free_frames();
 int get_free_frame();
 
 /* Page Functions */
-struct pte *create_page_table(struct pcb *p);
+struct pte *create_page_table();
+struct pte *create_page_table_helper(void * brk);
 struct pte *init_page_table0(struct pte *page_table);
 struct pte *clone_page_table(struct pte *src, struct pte **dst);
 struct pte *reset_page_table(struct pte *page_table);
