@@ -394,8 +394,8 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
     (page_table + i)->uprot = (page_table0_p + i)->uprot;
   }
   // update registers & flush
-  /*WriteRegister( REG_PTR0, (RCS421RegVal) page_table);*/
-  /*WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);*/
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
+  WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   return ctxp;
 }
 

@@ -252,7 +252,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   dprintf("finished initializing idle...", 0);
 
   dprintf("about to load idle...", 0);
-  /*if(LoadProgram("idle", cmd_args, frame, &pcb_idle) != 0) unix_error("error loading program!");*/
+  if(LoadProgram("idle", cmd_args, frame, &pcb_idle) != 0) unix_error("error loading program!");
   debug_pcb(pcb_idle);
 
   printf(DIVIDER);

@@ -234,7 +234,6 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
    *  Read the text and data from the file into memory.
    */
   dprintf("reading text and data into memory...", 0);
-  debug_page_table((*pcb_p)->page_table_p, 1);
   if (read(fd, (void *)MEM_INVALID_SIZE, li.text_size+li.data_size)
       != li.text_size+li.data_size) {
     TracePrintf(0, "LoadProgram: couldn't read for '%s'\n", name);
