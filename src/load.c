@@ -6,6 +6,7 @@
 #include <comp421/loadinfo.h>
 #include "yalnix_mem.h"
 
+
 /*
  *  Load a program into the current process's address space.  The
  *  program comes from the Unix file identified by "name", and its
@@ -45,7 +46,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   int stack_npg;
   int j,k;
   struct pte *page_table;
-  printf("[debug]: in loadprogram...\n");
+  dprintf("in load program", 1);
 
   TracePrintf(0, "LoadProgram '%s', args %p\n", name, args);
 
@@ -134,17 +135,17 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
 
   /*
      //TODO: (second part of this..)
-     >>>> The new program will require text_npg pages of text,
-     >>>> data_bss_npg pages of data/bss, and stack_npg pages of
-     >>>> stack.  In checking that there is enough free physical
+     >>>> In checking that there is enough free physical
      >>>> memory for this, be sure to allow for the physical memory
      >>>> pages already allocated to this process that will be
      >>>> freed below before we allocate the needed pages for
      >>>> the new program being loaded.
      */
   /*
-   * Check if we have enough space for the new process
+   * Check if we have enough physical space for the new process
+   * Need to have space for the text, data/bss and stack pages
    */
+  dprintf("checking if we have enough free memory...", 0);
   if (len_free_frames() < (text_npg + data_bss_npg + stack_npg)) {
     TracePrintf(0,
         "LoadProgram: program '%s' size too large for physical memory\n",
@@ -153,7 +154,6 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
     close(fd);
     return (-1);
   }
-  //TODO: check if there's free physical memory after we've freed physical memory
 
   // Initialize the stack pointer for current process
   frame->sp = cpp;
@@ -165,10 +165,9 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
    *  free the physical memory indicated by the pfn. Set all
    *  of these PTE to invalid.
    */
+  dprintf("freeing old memory in page table...", 0);
   page_table = (*pcb_p)->page_table_p;
-  // free everything except kernel stack
   page_table = reset_page_table_limited(page_table);
-
 
   /*
    *  Fill in the page table with the right number of text,
@@ -177,6 +176,8 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
    *  stack pages, so that we can read the text into them
    *  from the file.  We then change them read/execute.
    */
+
+  dprintf("initializing text, data/bss and stack...", 0);
   /* First, the text pages */
   // Leave the first MEM_INVALID_PAGES num of PTEs invalid
   // kprot to READ | WRITE
@@ -202,13 +203,16 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   }
 
   // Update heap limit
+  dprintf("updating region0 heap limit...", 0);
   (*pcb_p)->brk_index = k;
+
 
   /* And finally the user stack pages */
   // k should be equivalent to USER_STACK_BASE
   // go from base to limit
   // kprot to READ | WRITE
   // uprot to READ | WRITE
+  dprintf("updaing user stack pages...", 0);
   k = get_page_index(USER_STACK_LIMIT) - stack_npg;
   for (j = 0; j < stack_npg ; j++) {
     (page_table + k)->valid = PTE_VALID;
@@ -229,6 +233,8 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
   /*
    *  Read the text and data from the file into memory.
    */
+  dprintf("reading text and data into memory...", 0);
+  debug_page_table((*pcb_p)->page_table_p, 1);
   if (read(fd, (void *)MEM_INVALID_SIZE, li.text_size+li.data_size)
       != li.text_size+li.data_size) {
     TracePrintf(0, "LoadProgram: couldn't read for '%s'\n", name);
