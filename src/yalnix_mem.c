@@ -378,7 +378,8 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
   // save context
-  *(p->context) = *ctxp;
+  memcpy(p->context, ctxp, sizeof(SavedContext));
+  /**(p->context) = *ctxp;*/
   page_table = p->page_table_p;
   // copy kernel stack
   int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
@@ -424,6 +425,7 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
     /*memcpy( get_page_mem(page_table + i), get_page_mem(page_table0_p + i), PAGESIZE);*/
     /*memcpy( (void *)(((long)(page_table + i) & PAGEMASK_REVERSE) << PAGESHIFT), (void *)(((long)(page_table0_p + i) & PAGEMASK_REVERSE) << PAGESHIFT), PAGESIZE);*/
   }
+
   /*debug_page_table(page_table,1);*/
   // update registers & flush
   dprintf("about to write register pointers...", 1);
@@ -447,7 +449,7 @@ SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table;
   // save context
-  *(p->context) = *ctxp;
+  memcpy(p->context, ctxp, sizeof(ExceptionStackFrame));
   page_table = p->page_table_p; // should be a completely reset page table
   // extract kernel stack
   int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
@@ -487,6 +489,7 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   // save context of current process
   // we want to save a COPY, not just the pointer!
   *(p1->context) = *ctxp;
+  memcpy(p1->context, ctxp, sizeof(ExceptionStackFrame));
   page_table = p1->page_table_p; // should be a completely reset page table
 
   // update registers & flush
