@@ -238,32 +238,17 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   pcb_idle = Create_pcb(NULL);
   pcb_idle->name = "idle process";
 
+  // Set page table to initialized table
+  pcb_idle->page_table_p = create_page_table();
+
   // Saved context
   dprintf("about to create context...", 0);
   SavedContext *ctx = (SavedContext *)malloc(sizeof(SavedContext));
   pcb_idle->context = ctx;
 
-  // Set page table to initialized table
-  pcb_idle->page_table_p = create_page_table();
-  pcb_current = pcb_idle;
-
-  // Initialzed context
-  ContextSwitch(initswitchfunction, pcb_idle->context, (void *)pcb_idle, NULL);
-
-  // Load the idle program
-  dprintf("about to load idle...", 1);
-  if(LoadProgram("idle", cmd_args, frame, &pcb_current) != 0) unix_error("error loading program!");
-
-  // Set pcb
-  pcb_idle->pc_next = frame->pc;
-  pcb_idle->sp_next = frame->sp;
-  pcb_idle->psr_next = frame->psr;
-  pcb_idle->frame = frame;
-
-  debug_pcb(pcb_current);
-  debug_page_table(pcb_idle->page_table_p, 0);
-  printf("finished loading idle...\n");
-  fflush(stdout);
+  // Initialzed context but don't actually context switch
+  ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL);
+  dprintf("finished initializing idle...", 0);
 
   printf(DIVIDER);
   printf("INIT process\n");
@@ -273,42 +258,38 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   // Create init program
   // Create pcb for init program
   struct pcb *pcb_init;
-  struct pte *init_page_table;
 
   // create pcb for init
-  dprintf("creating init process...", 0);
+  dprintf("creating init process...", 1);
   pcb_init = Create_pcb(NULL);
   pcb_init->name = "init process";
 
   // Initiate page table
   dprintf("creating page tables for init...", 0);
-  init_page_table = create_page_table();
-  pcb_init->page_table_p = init_page_table;
+  pcb_init->page_table_p = create_page_table();
 
   // Saved context
   dprintf("about to create context...", 0);
   SavedContext *ctx_init = (SavedContext *)malloc(sizeof(SavedContext));
   pcb_init->context = ctx_init;
 
-  pcb_current = pcb_init;
-
-  dprintf("about to context switch...", 1);
-  debug_page_table(pcb_init->page_table_p, 0);
-  if (0 > ContextSwitch(initswitchfunction, pcb_init->context, (void *)pcb_init, NULL)) {
+  // Special context switch into init that inherits current process context
+  dprintf("about to context switch...", 0);
+  if (0 > ContextSwitch(switchfunc_init, pcb_init->context, (void *)pcb_init, NULL)) {
     unix_error("error context switching!");
   }
+
   dprintf("about to load init...", 0);
-  if(LoadProgram("init", cmd_args, frame, &pcb_current) != 0) unix_error("error loading program!");
+  if(LoadProgram("init", cmd_args, frame, &pcb_init) != 0) unix_error("error loading program!");
 
-  // Set pcb
-  /*pcb_current->pc_next = frame->pc;*/
-  /*pcb_current->sp_next = frame->sp;*/
-  /*pcb_current->psr_next = frame->psr;*/
-  /*pcb_current->frame = frame;*/
+  // Set init as current process
+  pcb_current = pcb_init;
+  pcb_current->pc_next = frame->pc;
+  pcb_current->sp_next = frame->sp;
+  pcb_current->psr_next = frame->psr;
+  pcb_current->frame = frame;
 
-  debug_pcb(pcb_current);
   dprintf("finished loading init...", 0);
-  fflush(stdout);
   dprintf("done starting kernel!", 0);
 }
 

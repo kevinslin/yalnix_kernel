@@ -364,40 +364,64 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
 }
 
 /*
- * Idle switch
- * Creates the initial SavedContext for idle.
- * Also copies the contents of the kernel stack to actual phyical pages (?)
+ * Initiate context for idle.
+ * Return old context since we're not really context switching
+ * Copy the kernel stack but map to new phsyical frame
+ * because we can't share the kernel stack
  */
 SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   dprintf("in switchfunc_idle...", 1);
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
-  // save context of idle into pcb
+  // save context
   *(p->context) = *ctxp;
-
+  page_table = p->page_table_p;
+  // copy kernel stack
+  int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
+  int kernel_base = get_page_index(KERNEL_STACK_BASE);
+  // check we have enough free memory to allocate new kernel stack
+  if ((kernel_limit - kernel_base) < len_free_frames()){
+    unix_error("don't have enough physical space to create new process");
+  }
+  for(i=kernel_base; i<=kernel_limit; i++) {
+    (page_table + i)->valid = (page_table0_p + i)->valid;
+    (page_table + i)->pfn = get_free_frame();
+    (page_table + i)->kprot = (page_table0_p + i)->kprot;
+    (page_table + i)->uprot = (page_table0_p + i)->uprot;
+  }
+  // update registers & flush
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   return ctxp;
 }
 
 /*
- * Initial context switch into first process
+ * Initial context switch into init program
+ * Return old context since no new context exists yet
+ * Take the current kernel stack and associate frame numbers of current
+ * kernel stack with current process.
+ * Basically, the kernel is already operating in the context of
+ * the init program, and now the init program just needs to assume it.
  */
 SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
-  dprintf("in switchfunc_idle...", 0);
-  fflush(stdout);
-
-  // Get page table
+  dprintf("in switchfunc_idle...", 1);
   struct pcb *p = (struct pcb *) p1;
-  struct pte *page_table = (p->page_table_p);
-
-  // Update register
-  WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
-
-  // flush tlb
-  if (VM_ENABLED) {
-    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+  struct pte *page_table;
+  // save context
+  *(p1->context) = *ctxp;
+  page_table = p->page_table_p; // should be a completely reset page table
+  // extract kernel stack
+  int kernel_limit = get_page_index(KERNEL_STACK_LIMIT);
+  int kernel_base = get_page_index(KERNEL_STACK_BASE);
+  for(i=kernel_base; i<=kernel_limit; i++) {
+    (page_table + i)->valid = (page_table0_p + i)->valid;
+    (page_table + i)->pfn = (page_table0_p + i)->pfn;
+    (page_table + i)->kprot = (page_table0_p + i)->kprot;
+    (page_table + i)->uprot = (page_table0_p + i)->uprot;
   }
+  // Update register & flush
+  WriteRegister( REG_PTR0, (RCS421RegVal) page_table);
+  WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   return ctxp;
 }
 

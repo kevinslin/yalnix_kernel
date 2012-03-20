@@ -126,9 +126,10 @@ void initialize_terminals();
 /* Context switch funcs */
 SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2 );
-SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 );
+SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2 );
 SavedContext* switchfunc_normal(SavedContext *ctxp, void *p1, void *p2 );
-SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2);
+SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2); //DEPRECIATE!
+SavedContext* switchfunc_nop(SavedContext *ctxp, void *p1, void *p2 ); //DEPRECIATE!
 
 /* Misc Functions */
 int get_next_pid();
