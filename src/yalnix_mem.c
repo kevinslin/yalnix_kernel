@@ -407,7 +407,6 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
 
     // Point restricted zone of region1 to point to same vpn as idle
     int ephermal_buffer_index = get_page_index(EPHERMAL_BUFFER);
-
     (page_table1_p +  ephermal_buffer_index)->valid = PTE_VALID;
     (page_table1_p + ephermal_buffer_index)->kprot = (PROT_READ | PROT_WRITE);
     (page_table1_p + ephermal_buffer_index)->uprot = PROT_NONE;
@@ -417,7 +416,6 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
     // Get pointers to copy current region0 kernel stack into restricted zone
     void *src = (void *)((((long)(page_table0_p + i) * PAGESIZE) & PAGEMASK3) >> 12);
     void *dst = (void *)EPHERMAL_BUFFER;
-    /*void *dst = (void *)((long)(VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE)));*/
 
     printf("src is: %p\n", src);
     printf("dst is: %p\n", dst);
@@ -430,9 +428,13 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
     (page_table1_p + ephermal_buffer_index)->pfn = PFN_INVALID;
     WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + (ephermal_buffer_index * PAGESIZE));
 
-    printf("address: %x\n", EPHERMAL_BUFFER);
-    printf("page index: %i\n", get_page_index(EPHERMAL_BUFFER));
-    printf("page memory: %x\n", get_page_mem(get_page_index(EPHERMAL_BUFFER)));
+    /*printf("address: %x\n", EPHERMAL_BUFFER);*/
+    /*printf("page index: %li\n", get_page_index(EPHERMAL_BUFFER));*/
+    /*printf("page memory: %x\n", get_page_mem(get_page_index(EPHERMAL_BUFFER)));*/
+
+    /*printf("address: %x\n", page_table0_p + i);*/
+    /*printf("page memory: %x\n", get_page_mem(i));*/
+
     printf("init: %x\n", (void *) page_table0_p + i);
     printf("idle: %x\n", (void *) page_table + i);
 
@@ -454,7 +456,7 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   dprintf("about to write flush...", 1);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   dprintf("finished flushing...", 0);
-  return context;
+  return p->context;
 }
 
 /*
