@@ -134,9 +134,9 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   interrupt_vector_table[TRAP_ILLEGAL] = &interrupt_illegal;
   interrupt_vector_table[TRAP_MEMORY] = &interrupt_memory;
   interrupt_vector_table[TRAP_MATH] = &interrupt_math;
-  interrupt_vector_table[TRAP_TTY_RECEIVE] = &interrupt_kernel;
-  interrupt_vector_table[TRAP_TTY_TRANSMIT] = &interrupt_kernel;
-  interrupt_vector_table[TRAP_DISK] = &interrupt_kernel;
+  interrupt_vector_table[TRAP_TTY_RECEIVE] = &interrupt_tty_receive;
+  interrupt_vector_table[TRAP_TTY_TRANSMIT] = &interrupt_tty_transmit;
+  interrupt_vector_table[TRAP_DISK] = &interrupt_disk;
 
   /* Point REG_VECTOR_BASE at interupt vector table */
   WriteRegister( REG_VECTOR_BASE, (RCS421RegVal) &interrupt_vector_table);
@@ -285,7 +285,8 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   debug_pcb(pcb_init);
 
   dprintf("about to load init...", 0);
-  if(LoadProgram("init", cmd_args, frame, &pcb_init) != 0) unix_error("error loading program!");
+  //if(LoadProgram("init", cmd_args, frame, &pcb_init) != 0) unix_error("error loading program!");
+  if(LoadProgram(cmd_args[0], cmd_args, frame, &pcb_init) != 0) unix_error("error loading program!");
 
   // Set init as current process
   pcb_current = pcb_init;

@@ -4,6 +4,12 @@
 #include <string.h>
 
 extern void start_idle(ExceptionStackFrame *frame);
+extern LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pcb_p);
+
+int Exec(char *filename, char **argvec){
+	return LoadProgram(filename, argvec, pcb_current->frame, pcb_current);
+}
+
 /*
  * Exit current process
  */
@@ -80,7 +86,7 @@ int Brk(void *addr){
 
 
 int Fork(){
-	dprintf("in fork...", 0);
+	dprintf("in fork...", 1);
 	struct pcb *parent = pcb_current;
 	struct pcb *child = Create_pcb(parent);
 	child->brk_index = parent->brk_index;

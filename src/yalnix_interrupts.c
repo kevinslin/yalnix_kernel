@@ -20,39 +20,34 @@ interrupt_kernel(ExceptionStackFrame *frame) {
   frame_current = frame;
 	switch(frame->code) {
 		case YALNIX_FORK:
-			printf("syscall fork...\n");
+			frame->regs[0] = Fork();
 			break;
 		case YALNIX_EXEC:
-			dprintf("syscall exec...", 0);
+			frame->regs[0] = Exec((char *)frame->regs[1],(char **) frame->regs[2]);
 			break;
 		case YALNIX_EXIT:
-      dprintf("syscall exit...", 0);
 			Exit(frame->regs[1]);
 			break;
 		case YALNIX_WAIT:
-      dprintf("syscall wait...", 0);
-      /*result = Wait((int *)frame->regs[1]);*/
-      /*dprintf("got back from wait...", 0);*/
-      /*frame->regs[0] = result;*/
+			is_valid = Wait((int *)frame->regs[1]);
+			frame->regs[0] = is_valid;
 			break;
 		case YALNIX_GETPID:
-			printf("syscall getting pid...\n");
-      frame->regs[0] = pcb_current->pid;
+			frame->regs[0] = pcb_current->pid;
 			break;
 		case YALNIX_BRK:
-			printf("syscall getting brk...\n");
+			frame->regs[0] = Brk((void *)frame->regs[1]);
 			break;
 		case YALNIX_DELAY:
-      dprintf("syscall delay...", 0);
 			is_valid = Delay(frame->regs[1]);
-      frame->regs[0] = is_valid;
+			frame->regs[0] = is_valid;
 			break;
     case YALNIX_TTY_READ:
-      dprintf("sycall tty read...", 0);
-      break;
+			frame->regs[0] = TtyRead(frame->regs[1], (void *)frame->regs[2], frame->regs[3]);
+			break;
     case YALNIX_TTY_WRITE:
-      dprintf("syscall tty_write...", 0);
-      break;
+			frame->regs[0] = TtyWrite(frame->regs[1], (void *)frame->regs[2], frame->regs[3]);
+			break;
 		default:
 			printf("got unknown system call!\n");
 	}

@@ -375,11 +375,12 @@ int get_next_pid() {
  * Context switch from fork
  */
 SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
+  dprintf("starting fork switch...", 1);
   struct pcb *parent = p1;
   struct pcb *child = p2;
   struct pte *parent_table = (parent->page_table_p);
   struct pte *child_table = (child->page_table_p);
-  clone_page_table(parent_table, &child_table);
+  clone_page_table_alt(parent_table, child_table);
   return ctxp;
 }
 
@@ -594,7 +595,7 @@ clone_page_table_alt(struct pte *page_table_dst, struct pte *page_table_src) {
     WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
 
     // Get pointers to copy current region0 kernel stack into restricted zone
-    void *dst = get_page_mem(ephermal_buffer_index);
+    void *dst = (void *)get_page_mem(ephermal_buffer_index);
     void *src = (void *) ((long) i * PAGESIZE);
     memcpy(dst, src , PAGESIZE);
 
