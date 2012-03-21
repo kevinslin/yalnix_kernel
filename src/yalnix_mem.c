@@ -300,7 +300,6 @@ int free_pcb(struct pcb *pcb_p) {
   dprintf("freeing pcb...", 0);
   free(pcb_p->children_wait);
   free(pcb_p->children_active); //TODO: free elemetns in queue
-  free(&pcb_p->context);
   free(pcb_p);
   return 1;
 }
@@ -314,6 +313,8 @@ struct pte *terminate_pcb(struct pcb *pcb_p) {
   elem *e;
   struct pte *page_table;
 
+  debug_pcb(pcb_p);
+
   page_table = pcb_current->page_table_p; // get reference to current page table
   pcb_current = NULL;  //doesn't exist any more
 
@@ -323,16 +324,11 @@ struct pte *terminate_pcb(struct pcb *pcb_p) {
     p = (struct pcb *)e;
     p->parent = NULL;
   }
-  dprintf("process has no active children...", 2);
-  if (NULL == pcb_p->parent) {
-    dprintf("process has no parent", 2);
-  } else {
-    dprintf("process has parent", 2);
-  }
   printf("process status: %i\n", pcb_p->status);
   // zombie status need to be collected by parent
   pcb_p->status = STATUS_ZOMBIE;
   if (NULL != pcb_p->parent) {
+    // remove parent from waiting on child
     dprintf("process has a parent...", 2);
     enqueue(pcb_p->parent->children_wait, pcb_p);
     if (STATUS_WAIT == pcb_p->parent->status) {
@@ -340,6 +336,7 @@ struct pte *terminate_pcb(struct pcb *pcb_p) {
       // add removed parent to the ready queue
     }
   } else {
+    // process has no parents so it's safe to free
     dprintf("no parent found...", 2);
     free_pcb(pcb_p);
   }
@@ -387,7 +384,7 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
   struct pte *parent_table = (parent->page_table_p);
   struct pte *child_table = (child->page_table_p);
   memcpy(&child->context, ctxp, sizeof(SavedContext));
-  dprintf("about to clone tables...", 2);
+  dprintf("about to clone tables...", 0);
   clone_page_table_all(child_table, parent_table);
   return ctxp;
 }
@@ -454,7 +451,7 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
 
   // save context of current process
   // we want to save a COPY, not just the pointer!
-  dprintf("saving context of pcb1...", 2);
+  dprintf("saving context of pcb1...", 0);
   memcpy(&p1->context, ctxp, sizeof(SavedContext));
 
   /*debug_page_table(p2->page_table_p, 1);*/
@@ -462,11 +459,11 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   debug_pcb(p2);
 
   // update registers & flush
-  dprintf("about to update ptr0...", 2);
+  dprintf("about to update ptr0...", 0);
   page_table0_p = p2->page_table_p;
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
-  dprintf("finished updating ptr0...", 2);
+  dprintf("finished updating ptr0...", 0);
   return &p2->context;
 }
 
@@ -546,7 +543,6 @@ void get_next_ready_process(struct pte *page_table) {
      * We have processes in ready that need to be run so run them!
      */
     dprintf("found a ready process...", 1);
-    debug_pcb((struct pcb *) e->value);
     /*debug_page_table(((struct pcb*)e->value)->page_table_p, 1);*/
 
     // switch to the new process, and save state of old process
@@ -578,49 +574,50 @@ extract_page_table(struct pte *page_table_dst, struct pte *page_table_src) {
   }
 }
 
-void clone_page_table_all(struct pte *page_table_dst, struct pte *page_table_src) {
-  int free_frame;
+/*
+ * Clone all page table entries and save temp in kernel
+ */
+struct pte *clone_page_table_all(struct pte *dest, struct pte *src) {
   int i;
-  int kernel_base = get_page_index(KERNEL_STACK_BASE);
-  // check we have enough free memory to allocate new kernel stack
-  if (PAGE_TABLE_LEN > len_free_frames()) unix_error("don't have enough physical space to create new process");
+  for (i=0; i<PAGE_TABLE_LEN; i++) {
+    (dest + i)->valid = (src +i)->valid;
+    (dest + i)->uprot = (src +i)->uprot;
+    (dest + i)->kprot = (src +i)->kprot;
+	if((src + i)->valid == PTE_VALID){
+		int free_frame = get_free_frame();
+		(dest+i)->pfn = free_frame;
+		(page_table1_p +  PAGEMASK2)->valid = PTE_VALID;
+		(page_table1_p + PAGEMASK2)->kprot = (PROT_READ | PROT_WRITE);
+		(page_table1_p + PAGEMASK2)->uprot = PROT_NONE;
+		(page_table1_p + PAGEMASK2)->pfn = free_frame;
+		WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + PAGEMASK2 * PAGESIZE);
 
-  dprintf("about to copy kernel stack...", 0);
-  debug_page_table(page_table_dst, 1);
-  debug_page_table(page_table_src, 1);
-  // copy kernel stack
-  for(i=0; i<PAGE_TABLE_LEN; i++) {
-  int kernel_base = get_page_index(KERNEL_STACK_BASE);
-    printf("i: %i\n", i);
-    // allocate free space
-    free_frame = get_free_frame();
-    (page_table_dst + i)->valid = (page_table_src + i)->valid;
-    (page_table_dst + i)->pfn = free_frame;
-    (page_table_dst + i)->kprot = (page_table_src + i)->kprot;
-    (page_table_dst + i)->uprot = (page_table_src + i)->uprot;
+		/*
+		 * Copy memory of old process into the vpn of
+		 * the copy buffer. Since this corresponds to
+		 * vpn of idle kernel vpn, this change should be
+		 * propagated into the idle kernel stack.
+		 */
+		void *dst = (void *)(VMEM_1_BASE + PAGEMASK2 * PAGESIZE);
+		//void *src1 = (void *)((((long)(src + i) *PAGESIZE)&PAGEMASK3) >> 12);
+		void *src1 = (void *)((long)(i * PAGESIZE));
+		memcpy(dst, src1 , PAGESIZE);
 
-    // Point restricted zone of region1 to point to same vpn as idle
-    int ephermal_buffer_index = kernel_base - 1; // store vpn in empty page between kernel and user stack
-    (page_table_src +  ephermal_buffer_index)->valid = PTE_VALID;
-    (page_table_src + ephermal_buffer_index)->kprot = (PROT_READ | PROT_WRITE);
-    (page_table_src + ephermal_buffer_index)->uprot = PROT_NONE;
-    // this page points to the same physical address as dst page table
-    (page_table_src + ephermal_buffer_index)->pfn = free_frame;
-    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+		/*
+		 * Copy buffer served its purpose, invalidate
+		 * so that it can be used again in the future
+		 */
+		(page_table1_p + PAGEMASK2)->valid = PTE_INVALID;
+		(page_table1_p + PAGEMASK2)->kprot = PROT_NONE;
+		(page_table1_p + PAGEMASK2)->uprot = PROT_NONE;
+		(page_table1_p + PAGEMASK2)->pfn = PFN_INVALID;
+		WriteRegister( REG_TLB_FLUSH, VMEM_1_BASE + PAGEMASK2 * PAGESIZE);
+	  }
+	else
+		(dest +i)->pfn = 0;
 
-    // Get pointers to copy current region0 kernel stack into restricted zone
-    void *dst = (void *)get_page_mem(ephermal_buffer_index);
-    void *src = (void *) ((long) i * PAGESIZE);
-    memcpy(dst, src , PAGESIZE);
-
-    // set restricted zone to no longer valid
-    (page_table_src + ephermal_buffer_index)->valid = PTE_INVALID;
-    (page_table_src + ephermal_buffer_index)->kprot = PROT_NONE;
-    (page_table_src + ephermal_buffer_index)->uprot = PROT_NONE;
-    (page_table_src + ephermal_buffer_index)->pfn = PFN_INVALID;
-    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   }
-
+  return dest;
 }
 
 /*

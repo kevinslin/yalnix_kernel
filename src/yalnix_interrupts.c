@@ -68,6 +68,8 @@ void interrupt_clock(ExceptionStackFrame *frame){
   struct pcb *pcb_p;
   struct pcb *pcb_tmp;
   elem_c = p_delay->head;
+  debug_process_queues();
+  debug_pcb(elem_c->value);
 
   // decrement items in delay queue
   // move into ready if time_delay has run down

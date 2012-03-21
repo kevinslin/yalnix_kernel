@@ -147,7 +147,7 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2); //DEPR
 int get_next_pid();
 void get_next_ready_process(struct pte *page_table);
 void extract_page_table(struct pte *page_table_dst, struct pte *page_table_src);
-void clone_page_table_all(struct pte *page_table_dst, struct pte *page_table_src);
+struct pte *clone_page_table_all(struct pte *dest, struct pte *src);
 void clone_page_table_alt(struct pte *page_table_dst, struct pte *page_table_src);
 
 

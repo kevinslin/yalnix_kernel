@@ -379,7 +379,7 @@ SavedContext* switchfunc_init(SavedContext *ctxp, void *pcb1, void *pcb2){
 	if(VM_ENABLED){
 		WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 	}
-	
+
 	return ctxp;
 }
 
@@ -408,9 +408,9 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
 	  p2->frame->pc = p2->pc_next;
 	  p2->frame->sp = p2->sp_next;
 	  p2->frame->psr = p2->psr_next;
-	  p2->frame = NULL; 
-	  p2->pc_next = NULL; 
-	  p2->sp_next = NULL; 
+	  p2->frame = NULL;
+	  p2->pc_next = NULL;
+	  p2->sp_next = NULL;
 	  p2->psr_next = -1;
 
 
@@ -462,7 +462,7 @@ void get_next_ready_process(struct pte *page_table) {
     if (0 > ContextSwitch(switchfunc_normal, ctx, pw, e->value)) {
       unix_error("failed context switch");
     }
-    
+
  }
   dprintf("exit get_next_ready_process", 1);
 }

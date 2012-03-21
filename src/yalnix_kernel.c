@@ -15,11 +15,11 @@ int Exec(char *filename, char **argvec){
  */
 void Exit(int status) {
 	struct pte *page_table;
-	dprintf("in exit...", 0);
+	dprintf("in exit...", 1);
 	//ExceptionStackFrame *frame = pcb_current->frame;
 	page_table = terminate_pcb(pcb_current); //FIXME: implement
 	get_next_ready_process(page_table);
-	exit(status); //FIXME: right?
+	/*exit(status); //FIXME: right?*/
 }
 
 int Delay(int clock_ticks) {
@@ -28,7 +28,7 @@ int Delay(int clock_ticks) {
   if (0 == clock_ticks) return 0;
   if (0 > clock_ticks) return ERROR;
   pcb_current->time_delay = clock_ticks;
-  debug_pcb(pcb_current); //DEBUG
+  /*debug_pcb(pcb_current); //DEBUG*/
 	// Put current process in delay
 	if (0 > enqueue(p_delay, (void *) pcb_current)) return ERROR;
 	get_next_ready_process(pcb_current->page_table_p);
@@ -88,7 +88,7 @@ int Brk(void *addr){
 int Fork(){
 	dprintf("in fork...", 1);
 	struct pcb *parent = pcb_current;
-  // create pcb for child
+
 	struct pcb *child = Create_pcb(parent);
 	child->brk_index = parent->brk_index;
 	child->stack_limit_index = parent->stack_limit_index;
@@ -96,21 +96,20 @@ int Fork(){
 
   SavedContext *ctx;
   ctx = &child->context;
-  // create page tables for child
-  dprintf("creating pages for child...", 2);
+  dprintf("creating pages for child...", 0);
 	struct pte* page_table = create_page_table();
 	child->page_table_p = page_table;
 
-  dprintf("enqueing child...", 2);
+  dprintf("enqueing child...", 0);
 	enqueue(p_ready, (void *)child);
 
   dprintf("about to context switch...", 2);
-	if(ContextSwitch(switchfunc_fork, &child->context, parent, child) == -1) {
-	}
+	if(ContextSwitch(switchfunc_fork, &child->context, parent, child) == -1) return ERROR;
+
 	if(pcb_current == parent) {
 		return child->pid;
 	} else if(pcb_current == child) {
-		return child->pid;
+		return 0;
 	} else {
 		return ERROR;
 	}
