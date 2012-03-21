@@ -1,0 +1,35 @@
+** Hardware level 9 tracing enabled **
+** Kernel   level 9 tracing enabled **
+** User     level 9 tracing enabled **
+Hardware Booted '/storage-home/k/ksl3/school/comp421/labs/lab2/src/yalnix'
+Hardware Setting hardware initialized flag
+Hardware orig CmdArgs[0] = 0x7fff98d23963 = '0'
+Hardware new CmdArgs[0] = 0x1fffe6 = '0'
+Hardware TTYs disabled due to '-n' flag.
+Hardware InitDisk: name '/clear/courses/comp421/pub/etc/yalnixdisk'
+Hardware socketpair 10 11
+Hardware InitDisk: DiskSocket 10, SOCKET_FD 3
+Hardware InitDisk: parent
+Hardware InitDisk: doing ready read: &ready 0xc6cc50
+Hardware Done with DiskInit
+
+Hardware SignalHandler 1: signum 11 si 0x10fff40 uc 0x10ffe10
+Hardware >>>> YALNIX BOOT
+Hardware args: rdi c65680 rsi b rdx 4c8
+Hardware       rcx 0 r8 0 r9 0
+Hardware original return pc 0xc0a351
+Hardware YALNIX BOOT!
+Hardware Yalnix trap orig pc (nil)
+Hardware Yalnix trap new pc 0x1a
+Hardware Back from SignalHandlerWork: vector -1
+Hardware Calling SwitchStacks for KernelStart 0x200523
+Hardware args: &fake_frame 0x10ffd50, PmemSize 0x400000, CmdArgs 0x1fffd0
+Hardware Done with ValidateKernelStack: error 0
+Hardware CallVector: calling func 0x200523
+
+Hardware NewVectorBase 0x24e2c0
+Hardware NewPTR0 0x253010
+Hardware NewPTR1 0x250440
+Hardware EnableVM: PTR0 0x253010, PTR1 0x250440
+Hardware msync((nil),2080768,MS_SYNC) status 4
+Hardware Pause
