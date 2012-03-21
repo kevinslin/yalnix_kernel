@@ -426,7 +426,7 @@ SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
   memcpy(&p->context, ctxp, sizeof(ExceptionStackFrame));
   page_table = p->page_table_p; // should be a completely reset page table
 
-  extract_page_table(page_table, page_table0_p);
+  clone_page_table_alt(page_table, page_table0_p);
 
   // Update register & flush
   page_table0_p = page_table;
