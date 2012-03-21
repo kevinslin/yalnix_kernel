@@ -86,6 +86,7 @@ struct pte *page_table0_p; // points to current region0 table
 struct pte *page_table0_kernel; // points to current region0 table
 bool IDLE_CREATED;
 SavedContext *ctx_idle;
+SavedContext *ctx_tmp;
 ExceptionStackFrame *frame_idle;
 char **cmd_args_idle;
 ExceptionStackFrame *frame_current;

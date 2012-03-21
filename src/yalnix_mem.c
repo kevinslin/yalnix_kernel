@@ -179,7 +179,7 @@ struct pte *create_page_table_helper(void * brk) {
   struct pte *page_table;
   if (NULL == brk) {
     unix_error("tried malloc memory when create page table");
-    page_table = (struct pte *)malloc(PAGE_TABLE_SIZE);
+    //page_table = (struct pte *)malloc(PAGE_TABLE_SIZE);
     if (NULL == page_table) unix_error("can't malloc page table");
   } else {
     page_table = (struct pte *)brk;
@@ -380,7 +380,7 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
   struct pcb *child = p2;
   struct pte *parent_table = (parent->page_table_p);
   struct pte *child_table = (child->page_table_p);
-  clone_page_table_alt(parent_table, child_table);
+  clone_page_table_alt(child_table, parent_table);
   return ctxp;
 }
 

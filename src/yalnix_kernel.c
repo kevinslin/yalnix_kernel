@@ -7,7 +7,7 @@ extern void start_idle(ExceptionStackFrame *frame);
 extern LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pcb_p);
 
 int Exec(char *filename, char **argvec){
-	return LoadProgram(filename, argvec, pcb_current->frame, pcb_current);
+	return LoadProgram(filename, argvec, pcb_current->frame, &pcb_current);
 }
 
 /*
@@ -91,17 +91,28 @@ int Fork(){
 	struct pcb *child = Create_pcb(parent);
 	child->brk_index = parent->brk_index;
 	child->stack_limit_index = parent->stack_limit_index;
-	SavedContext *ctx = child->context;
+  child->context = ctx_tmp;
+  child->name = "child process";
 
-	enqueue(p_ready, child);
+  SavedContext *ctx;
+  child->context = ctx;
+  // create page tables for child
+  //
+  dprintf("creating pages for child...", 2);
+	struct pte* page_table = create_page_table();
+	child->page_table_p = page_table;
 
-	if(ContextSwitch(switchfunc_fork, ctx, parent, child) == -1) {
+  dprintf("enqueing child...", 2);
+	enqueue(p_ready, (void *)child);
+
+  dprintf("about to context switch...", 2);
+	if(ContextSwitch(switchfunc_fork, child->context, parent, child) == -1) {
 		return ERROR;
 	}
 	if(pcb_current == parent) {
 		return child->pid;
 	} else if(pcb_current == child) {
-		return 0;
+		return child->pid;
 	} else {
 		return ERROR;
 	}
