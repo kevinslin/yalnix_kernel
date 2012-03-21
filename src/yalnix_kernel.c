@@ -208,7 +208,7 @@ int TtyWrite(int id, void *buf, int length) {
   dprintf(BOND, 2);
   debug_tty_queues(id);
   debug_pcb(pcb_current);
-  debug_pcb( tty_write_wait[id].head );
+  //debug_pcb( tty_write_wait[id].head );
   dprintf(BOND, 2);
 
 	get_next_ready_process(pcb_current->page_table_p);

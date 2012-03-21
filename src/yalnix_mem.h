@@ -30,6 +30,7 @@
 #define PAGEMASK_REVERSE 0x3ff
 #define PAGEMASK3 0x3ffffffff
 #define EPHERMAL_BUFFER VMEM_1_SIZE - PAGESIZE
+#define PAGEMASK2 ((VMEM_1_SIZE / PAGESIZE)-1)
 
 #define get_page_index(mem_address) (( ((long) mem_address) & PAGEMASK) >> PAGESHIFT)
 //#define get_page_mem(page_index) ((void *)(page_index * PAGESIZE))
@@ -146,6 +147,7 @@ SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2); //DEPR
 int get_next_pid();
 void get_next_ready_process(struct pte *page_table);
 void extract_page_table(struct pte *page_table_dst, struct pte *page_table_src);
+void clone_page_table_all(struct pte *page_table_dst, struct pte *page_table_src);
 void clone_page_table_alt(struct pte *page_table_dst, struct pte *page_table_src);
 
 

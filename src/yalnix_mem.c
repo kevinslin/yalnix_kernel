@@ -387,7 +387,8 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
   struct pte *parent_table = (parent->page_table_p);
   struct pte *child_table = (child->page_table_p);
   memcpy(&child->context, ctxp, sizeof(SavedContext));
-  clone_page_table_alt(child_table, parent_table);
+  dprintf("about to clone tables...", 2);
+  clone_page_table_all(child_table, parent_table);
   return ctxp;
 }
 
@@ -575,6 +576,51 @@ extract_page_table(struct pte *page_table_dst, struct pte *page_table_src) {
     (page_table_dst + i)->kprot = (page_table_src + i)->kprot;
     (page_table_dst + i)->uprot = (page_table_src + i)->uprot;
   }
+}
+
+void clone_page_table_all(struct pte *page_table_dst, struct pte *page_table_src) {
+  int free_frame;
+  int i;
+  int kernel_base = get_page_index(KERNEL_STACK_BASE);
+  // check we have enough free memory to allocate new kernel stack
+  if (PAGE_TABLE_LEN > len_free_frames()) unix_error("don't have enough physical space to create new process");
+
+  dprintf("about to copy kernel stack...", 0);
+  debug_page_table(page_table_dst, 1);
+  debug_page_table(page_table_src, 1);
+  // copy kernel stack
+  for(i=0; i<PAGE_TABLE_LEN; i++) {
+  int kernel_base = get_page_index(KERNEL_STACK_BASE);
+    printf("i: %i\n", i);
+    // allocate free space
+    free_frame = get_free_frame();
+    (page_table_dst + i)->valid = (page_table_src + i)->valid;
+    (page_table_dst + i)->pfn = free_frame;
+    (page_table_dst + i)->kprot = (page_table_src + i)->kprot;
+    (page_table_dst + i)->uprot = (page_table_src + i)->uprot;
+
+    // Point restricted zone of region1 to point to same vpn as idle
+    int ephermal_buffer_index = kernel_base - 1; // store vpn in empty page between kernel and user stack
+    (page_table_src +  ephermal_buffer_index)->valid = PTE_VALID;
+    (page_table_src + ephermal_buffer_index)->kprot = (PROT_READ | PROT_WRITE);
+    (page_table_src + ephermal_buffer_index)->uprot = PROT_NONE;
+    // this page points to the same physical address as dst page table
+    (page_table_src + ephermal_buffer_index)->pfn = free_frame;
+    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+
+    // Get pointers to copy current region0 kernel stack into restricted zone
+    void *dst = (void *)get_page_mem(ephermal_buffer_index);
+    void *src = (void *) ((long) i * PAGESIZE);
+    memcpy(dst, src , PAGESIZE);
+
+    // set restricted zone to no longer valid
+    (page_table_src + ephermal_buffer_index)->valid = PTE_INVALID;
+    (page_table_src + ephermal_buffer_index)->kprot = PROT_NONE;
+    (page_table_src + ephermal_buffer_index)->uprot = PROT_NONE;
+    (page_table_src + ephermal_buffer_index)->pfn = PFN_INVALID;
+    WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
+  }
+
 }
 
 /*
