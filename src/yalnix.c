@@ -9,7 +9,6 @@
 #include "yalnix_mem.h"
 
 /* Function headers */
-SavedContext* initswitchfunction(SavedContext *ctxp, void *p1, void *p2);
 void create_idle_pcb();
 void start_idle();
 
@@ -221,9 +220,6 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   WriteRegister( REG_PTR1, (RCS421RegVal) page_table1_p);
 
   /* Do mallocing before enabling virtual memory */
-  ctx_idle = (SavedContext *)malloc(sizeof(SavedContext));
-  ctx_tmp = (SavedContext *)malloc(sizeof(SavedContext));
-  SavedContext *ctx_init = (SavedContext *)malloc(sizeof(SavedContext));
   frame_idle = malloc(sizeof (ExceptionStackFrame));
   frame_idle = frame;
 
@@ -251,7 +247,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
   /*pcb_idle->context = ctx_idle;*/
 
   /*// Initialzed context but don't actually context switch*/
-  /*if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL)) unix_error("bad context switch!");*/
+  /*if ( 0 > ContextSwitch(switchfunc_idle, &pcb_idle->context, (void *)pcb_idle, NULL)) unix_error("bad context switch!");*/
   /*dprintf("finished initializing idle...", 0);*/
 
   /*dprintf("about to load idle...", 0);*/
@@ -278,11 +274,11 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   // Saved context
   dprintf("about to create context...", 0);
-  pcb_init->context = ctx_init;
+  SavedContext *ctx_init =  &pcb_init->context;
 
   // Special context switch into init that inherits current process context
   dprintf("about to context switch...", 0);
-  if (0 > ContextSwitch(switchfunc_init, pcb_init->context, (void *)pcb_init, NULL)) unix_error("error context switching!");
+  if (0 > ContextSwitch(switchfunc_init, &pcb_init, (void *)pcb_init, NULL)) unix_error("error context switching!");
   debug_pcb(pcb_init);
 
   dprintf("about to load init...", 0);

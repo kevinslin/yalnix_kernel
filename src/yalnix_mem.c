@@ -73,7 +73,7 @@ void debug_pcb(struct pcb *pcb_p) {
   printf("children waiting: %i\n", pcb_p->children_wait->len);
   printf("time current: %u\n", pcb_p->time_current);
   printf("time current: %u\n", pcb_p->time_delay);
-  printf("context: %p\n", pcb_p->context);
+  printf("context: %p\n", &pcb_p->context);
   printf("name: %s\n", pcb_p->name);
   printf(DIVIDER);
 }
@@ -295,7 +295,7 @@ int free_pcb(struct pcb *pcb_p) {
   dprintf("freeing pcb...", 0);
   free(pcb_p->children_wait);
   free(pcb_p->children_active); //TODO: free elemetns in queue
-  free(pcb_p->context);
+  free(&pcb_p->context);
   free(pcb_p);
   return 1;
 }
@@ -395,7 +395,7 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table = (p->page_table_p);
   // save context
-  memcpy(p->context, ctxp, sizeof(SavedContext));
+  memcpy(&p->context, ctxp, sizeof(SavedContext));
   page_table = p->page_table_p;
 
   clone_page_table_alt(page_table, page_table0_p);
@@ -407,7 +407,7 @@ SavedContext* switchfunc_idle(SavedContext *ctxp, void *p1, void *p2){
   dprintf("about to write flush...", 0);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   dprintf("finished flushing...", 0);
-  return p->context;
+  return &p->context;
 }
 
 /*
@@ -423,7 +423,7 @@ SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table;
   // save context
-  memcpy(p->context, ctxp, sizeof(ExceptionStackFrame));
+  memcpy(&p->context, ctxp, sizeof(ExceptionStackFrame));
   page_table = p->page_table_p; // should be a completely reset page table
 
   extract_page_table(page_table, page_table0_p);
@@ -447,7 +447,7 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   // save context of current process
   // we want to save a COPY, not just the pointer!
   dprintf("saving context of pcb1...", 2);
-  memcpy(p1->context, ctxp, sizeof(ExceptionStackFrame));
+  memcpy(&p1->context, ctxp, sizeof(ExceptionStackFrame));
 
   /*debug_page_table(p2->page_table_p, 1);*/
   debug_pcb(p1);
@@ -459,7 +459,7 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   WriteRegister( REG_PTR0, (RCS421RegVal) page_table0_p);
   WriteRegister( REG_TLB_FLUSH, TLB_FLUSH_0);
   dprintf("finished updating ptr0...", 2);
-  return p2->context;
+  return &p2->context;
 }
 
 
@@ -487,10 +487,10 @@ void get_next_ready_process(struct pte *page_table) {
       pcb_idle->page_table_p = create_page_table();
       // Saved context
       dprintf("about to create context...", 0);
-      pcb_idle->context = ctx_idle;
+      ctx_idle = &pcb_idle->context;
       /*debug_frames(0);*/
       // Initialzed context but don't actually context switch
-      if ( 0 > ContextSwitch(switchfunc_idle, pcb_idle->context, (void *)pcb_idle, NULL)) unix_error("bad context switch!");
+      if ( 0 > ContextSwitch(switchfunc_idle, ctx_idle, (void *)pcb_idle, NULL)) unix_error("bad context switch!");
       dprintf("finished initializing idle...", 0);
     } // finished creating idle pcb
 
@@ -498,7 +498,7 @@ void get_next_ready_process(struct pte *page_table) {
     if (NULL == pcb_current) {
       dprintf("current proccess no longer exists", 1);
       // context switch into idle. Orignal program no longer exists
-      if (0 > ContextSwitch(switchfunc_normal, pcb_idle->context, NULL , pcb_idle)) {
+      if (0 > ContextSwitch(switchfunc_normal, &pcb_idle->context, NULL , pcb_idle)) {
         unix_error("failed context switch");
       }
       // context switched to idle and old program has terminated.
@@ -511,7 +511,7 @@ void get_next_ready_process(struct pte *page_table) {
       dprintf("current process is delayed...", 0);
       // current process is running but delayed
       // it is already in the delay queue and just needs to be contex switched out
-      if (0 > ContextSwitch(switchfunc_normal, pcb_current->context, pcb_current, pcb_idle)) {
+      if (0 > ContextSwitch(switchfunc_normal, &pcb_current->context, pcb_current, pcb_idle)) {
         unix_error("failed context switch");
       }
     }
@@ -534,7 +534,7 @@ void get_next_ready_process(struct pte *page_table) {
     /*debug_page_table(((struct pcb*)e->value)->page_table_p, 1);*/
 
     // switch to the new process, and save state of old process
-    if (0 > ContextSwitch(switchfunc_normal, pcb_current->context, pcb_current, e->value))
+    if (0 > ContextSwitch(switchfunc_normal, &pcb_current->context, pcb_current, e->value))
       unix_error("failed context switch");
     // finish context switching, set current pcb to new process
     dprintf("activating pcb of ready ...", 1);

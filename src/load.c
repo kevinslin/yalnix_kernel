@@ -27,7 +27,7 @@
  *  is no longer runnable, and this function returns -2 for errors
  *  in this case.
  */
-  int
+int
 LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pcb_p)
 {
   int fd;
@@ -83,6 +83,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame *frame, struct pcb **pc
    *  the new stack that we are building.  Also count the number of
    *  arguments, to become the argc that the new "main" gets called with.
    */
+  dprintf("figure out arg num", 2);
   size = 0;
   for (i = 0; args[i] != NULL; i++) {
     size += strlen(args[i]) + 1;

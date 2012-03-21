@@ -47,7 +47,7 @@ struct pcb{
   int status; // delayed, sleeping...
   int brk_index; //heap limit
   int stack_limit_index;
-  SavedContext *context;
+  SavedContext context;
   struct pte *page_table_p;
   struct pte *page_table_p_physical;
   struct pcb *parent;

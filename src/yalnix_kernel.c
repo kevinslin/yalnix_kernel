@@ -91,13 +91,11 @@ int Fork(){
 	struct pcb *child = Create_pcb(parent);
 	child->brk_index = parent->brk_index;
 	child->stack_limit_index = parent->stack_limit_index;
-  child->context = ctx_tmp;
   child->name = "child process";
 
   SavedContext *ctx;
-  child->context = ctx;
+  ctx = &child->context;
   // create page tables for child
-  //
   dprintf("creating pages for child...", 2);
 	struct pte* page_table = create_page_table();
 	child->page_table_p = page_table;
@@ -106,8 +104,7 @@ int Fork(){
 	enqueue(p_ready, (void *)child);
 
   dprintf("about to context switch...", 2);
-	if(ContextSwitch(switchfunc_fork, child->context, parent, child) == -1) {
-		return ERROR;
+	if(ContextSwitch(switchfunc_fork, &child->context, parent, child) == -1) {
 	}
 	if(pcb_current == parent) {
 		return child->pid;
