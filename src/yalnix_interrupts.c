@@ -157,10 +157,10 @@ void interrupt_tty_receive(ExceptionStackFrame *frame){
 
   stream_read->buf = buf;
   stream_read->length = TtyReceive(frame->code, stream_read->buf, TERMINAL_MAX_LINE);
-  enqueue(tty_read[frame->code], (void *)stream_read);
+  enqueue(&tty_read[frame->code], (void *)stream_read);
 
-  if (0 < tty_read_wait[frame->code]->len) {
-    pcb_p = (struct pcb *)dequeue(tty_read_wait[frame->code]);
+  if (0 < tty_read_wait[frame->code].len) {
+    pcb_p = (struct pcb *)dequeue(&tty_read_wait[frame->code]);
     enqueue(p_ready, (void *)pcb_p);
   }
 }
@@ -173,18 +173,18 @@ void interrupt_tty_transmit(ExceptionStackFrame *frame){
   int id;
 
   id = frame->code;
-  stream_write = (stream *)dequeue(tty_write[id]);
+  stream_write = (stream *)dequeue(&tty_write[id]);
   free(stream_write->buf);
   free(stream_write);
 
-  assert(0 < tty_write_wait[id]->len);
-  pcb_p = (struct pcb *)dequeue(tty_write_wait[id]);
+  assert(0 < tty_write_wait[id].len);
+  pcb_p = (struct pcb *)dequeue(&tty_write_wait[id]);
   tty_busy[id] = TTY_FREE;
   enqueue(p_ready, pcb_p);
 
   // are any other lines that need to be written?
-  if (0 < tty_write[id]->len) {
-    stream_tmp = ((stream *)tty_write[id]->head);
+  if (0 < tty_write[id].len) {
+    stream_tmp = ((stream *)tty_write[id].head);
     tty_busy[id] = TTY_BUSY;
     TtyTransmit(id, stream_tmp->buf, stream_tmp->length);
   }

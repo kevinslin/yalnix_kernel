@@ -94,10 +94,10 @@ void debug_tty_queues(int id) {
   i = id;
   printf(DIVIDER);
   printf("dumping process queues...\n");
-  printf("size of read: %i\n", tty_read[i]->len);
-  printf("size of write: %i\n", tty_write[i]->len);
-  printf("size of read_wait: %i\n", tty_read_wait[i]->len);
-  printf("size of write_wait: %i\n", tty_write_wait[i]->len);
+  printf("size of read: %i\n", tty_read[i].len);
+  printf("size of write: %i\n", tty_write[i].len);
+  printf("size of read_wait: %i\n", tty_read_wait[i].len);
+  printf("size of write_wait: %i\n", tty_write_wait[i].len);
   printf("\n");
 }
 /*queue *tty_read[NUM_TERMINALS];*/
@@ -372,10 +372,10 @@ struct pcb *Create_pcb(struct pcb *parent) {
 void initialize_terminals() {
   int i;
   for (i=0; i<NUM_TERMINALS; i++) {
-    tty_read[i] = create_queue();
-    tty_write[i] = create_queue();
-    tty_read_wait[i] = create_queue();
-    tty_write_wait[i] = create_queue();
+    tty_read[i] = *create_queue();
+    tty_write[i] = *create_queue();
+    tty_read_wait[i] = *create_queue();
+    tty_write_wait[i] = *create_queue();
     tty_busy[i] = TTY_FREE;
   }
 }
@@ -439,7 +439,7 @@ SavedContext* switchfunc_init(SavedContext *ctxp, void *p1, void *p2){
   struct pcb *p = (struct pcb *) p1;
   struct pte *page_table;
   // save context
-  memcpy(&p->context, ctxp, sizeof(ExceptionStackFrame));
+  memcpy(&p->context, ctxp, sizeof(SavedContext));
   page_table = p->page_table_p; // should be a completely reset page table
 
   clone_page_table_alt(page_table, page_table0_p);
@@ -463,7 +463,7 @@ SavedContext *switchfunc_normal(SavedContext *ctxp, void *pcb1, void *pcb2) {
   // save context of current process
   // we want to save a COPY, not just the pointer!
   dprintf("saving context of pcb1...", 2);
-  memcpy(&p1->context, ctxp, sizeof(ExceptionStackFrame));
+  memcpy(&p1->context, ctxp, sizeof(SavedContext));
 
   /*debug_page_table(p2->page_table_p, 1);*/
   debug_pcb(p1);
