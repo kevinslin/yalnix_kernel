@@ -67,6 +67,7 @@ void debug_pcb(struct pcb *pcb_p) {
   printf(DIVIDER);
   printf("dumping pcb...\n");
   printf("address: %p\n", pcb_p);
+  printf("parent: %p\n", pcb_p->parent);
   printf("pid: %i\n", pcb_p->pid);
   printf("brk index: %i\n", pcb_p->brk_index);
   printf("stack limit index: %i\n", pcb_p->stack_limit_index);
@@ -224,20 +225,6 @@ struct pte *init_page_table0(struct pte *page_table) {
   return page_table;
 }
 
-/*
- * Clone pt2 into pt1
- * Mallocs room for new page table TODO: possible memory leak
- */
-struct pte *clone_page_table(struct pte *src, struct pte **dest) {
-  int i;
-  for (i=0; i<PAGE_TABLE_LEN; i++) {
-    (*dest + i)->pfn = (src + i)->pfn;
-    (*dest + i)->valid = (src +i)->valid;
-    (*dest + i)->uprot = (src +i)->uprot;
-    (*dest + i)->kprot = (src +i)->kprot;
-  }
-  return *dest;
-}
 
 /*
  * Sets everything to invalid
@@ -322,7 +309,7 @@ int free_pcb(struct pcb *pcb_p) {
  * Detroy pcb and update book keeping information
  */
 struct pte *terminate_pcb(struct pcb *pcb_p) {
-  dprintf("in terminate_pcb...", 0);
+  dprintf("in terminate_pcb...", 1);
   struct pcb *p;
   elem *e;
   struct pte *page_table;
@@ -336,27 +323,27 @@ struct pte *terminate_pcb(struct pcb *pcb_p) {
     p = (struct pcb *)e;
     p->parent = NULL;
   }
-  dprintf("process has no active children...", 0);
+  dprintf("process has no active children...", 2);
   if (NULL == pcb_p->parent) {
-    dprintf("process has no parent", 0);
+    dprintf("process has no parent", 2);
   } else {
-    dprintf("process has parent", 0);
+    dprintf("process has parent", 2);
   }
   printf("process status: %i\n", pcb_p->status);
   // zombie status need to be collected by parent
   pcb_p->status = STATUS_ZOMBIE;
   if (NULL != pcb_p->parent) {
-    dprintf("process has a parent...", 0);
+    dprintf("process has a parent...", 2);
     enqueue(pcb_p->parent->children_wait, pcb_p);
     if (STATUS_WAIT == pcb_p->parent->status) {
       //TODO: remove parent from waiting queue
       // add removed parent to the ready queue
     }
   } else {
-    dprintf("no parent found...", 0);
+    dprintf("no parent found...", 2);
     free_pcb(pcb_p);
   }
-  dprintf("exiting terminate_pcb...", 0);
+  dprintf("exiting terminate_pcb...", 2);
   return page_table;
 }
 
@@ -391,6 +378,7 @@ int get_next_pid() {
 
 /*
  * Context switch from fork
+ * Pass in the context of the child
  */
 SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
   dprintf("starting fork switch...", 1);
@@ -398,6 +386,7 @@ SavedContext* switchfunc_fork(SavedContext *ctxp, void *p1, void *p2 ){
   struct pcb *child = p2;
   struct pte *parent_table = (parent->page_table_p);
   struct pte *child_table = (child->page_table_p);
+  memcpy(&child->context, ctxp, sizeof(SavedContext));
   clone_page_table_alt(child_table, parent_table);
   return ctxp;
 }
@@ -589,7 +578,7 @@ extract_page_table(struct pte *page_table_dst, struct pte *page_table_src) {
 }
 
 /*
- * Copy clone page table
+ * Copy kernel stack from src but in new physical addresses
  */
 void
 clone_page_table_alt(struct pte *page_table_dst, struct pte *page_table_src) {

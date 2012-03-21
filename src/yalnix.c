@@ -20,7 +20,6 @@ void *interrupt_vector_table[TRAP_VECTOR_SIZE];
 
 struct pte page_table1[PAGE_TABLE_LEN];
 struct pte *page_table1_p = page_table1;
-static int runOnce = 0;
 
 /* Kernel Functions */
 /*
@@ -287,16 +286,7 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 
   // Special context switch into init that inherits current process context
   dprintf("about to context switch...", 0);
-  if (0 > ContextSwitch(switchfunc_init, &pcb_init->context, (void *)pcb_init, NULL)) unix_error("error context switching!");
-	if (runOnce == 0)
-	{
-		runOnce = 1;
-	}
-	else {
-    dprintf(BOND, 2);
-    dprintf("run once HIT!", 2);
-		return;
-	}
+  if (0 > ContextSwitch(switchfunc_init, ctx_init, (void *)pcb_init, NULL)) unix_error("error context switching!");
   debug_pcb(pcb_init);
 
   dprintf("about to load init...", 0);

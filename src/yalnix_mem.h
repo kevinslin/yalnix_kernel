@@ -122,7 +122,6 @@ int get_free_frame();
 struct pte *create_page_table();
 struct pte *create_page_table_helper(void * brk);
 struct pte *init_page_table0(struct pte *page_table);
-struct pte *clone_page_table(struct pte *src, struct pte **dst);
 struct pte *reset_page_table(struct pte *page_table);
 struct pte *reset_page_table_limited(struct pte *page_table);
 int free_page_table(struct pte *page_table);

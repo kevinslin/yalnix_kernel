@@ -88,6 +88,7 @@ int Brk(void *addr){
 int Fork(){
 	dprintf("in fork...", 1);
 	struct pcb *parent = pcb_current;
+  // create pcb for child
 	struct pcb *child = Create_pcb(parent);
 	child->brk_index = parent->brk_index;
 	child->stack_limit_index = parent->stack_limit_index;
