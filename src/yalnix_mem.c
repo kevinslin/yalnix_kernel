@@ -10,6 +10,7 @@ extern int LoadProgram(char *name, char **args, ExceptionStackFrame *frame, stru
 int PID = 0;
 struct pte pte_null = {0, 0, 0, 0, 0};
 struct pte pte_mask = {-1, 0, 0, 0, 0};
+static int runOnce = 0;
 
 /* Debug functions */
 void
@@ -65,6 +66,7 @@ debug_frames(int verbosity) {
 void debug_pcb(struct pcb *pcb_p) {
   printf(DIVIDER);
   printf("dumping pcb...\n");
+  printf("address: %p\n", pcb_p);
   printf("pid: %i\n", pcb_p->pid);
   printf("brk index: %i\n", pcb_p->brk_index);
   printf("stack limit index: %i\n", pcb_p->stack_limit_index);
@@ -525,6 +527,15 @@ void get_next_ready_process(struct pte *page_table) {
     } else {
       // current process is not free'd
       dprintf("current process is delayed...", 0);
+      if (runOnce == 0)
+      {
+        runOnce = 1;
+      }
+      else {
+        dprintf(BOND, 2);
+        dprintf("run once HIT!", 2);
+        return;
+      }
       // current process is running but delayed
       // it is already in the delay queue and just needs to be contex switched out
       if (0 > ContextSwitch(switchfunc_normal, &pcb_current->context, pcb_current, pcb_idle)) {

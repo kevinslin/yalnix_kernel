@@ -293,6 +293,8 @@ void KernelStart(ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_
 		runOnce = 1;
 	}
 	else {
+    dprintf(BOND, 2);
+    dprintf("run once HIT!", 2);
 		return;
 	}
   debug_pcb(pcb_init);
