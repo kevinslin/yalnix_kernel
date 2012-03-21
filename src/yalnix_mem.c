@@ -89,6 +89,22 @@ void debug_process_queues() {
   printf("size of delay: %i\n", p_delay->len);
   printf("\n");
 }
+void debug_tty_queues(int id) {
+  int i;
+  i = id;
+  printf(DIVIDER);
+  printf("dumping process queues...\n");
+  printf("size of read: %i\n", tty_read[i]->len);
+  printf("size of write: %i\n", tty_write[i]->len);
+  printf("size of read_wait: %i\n", tty_read_wait[i]->len);
+  printf("size of write_wait: %i\n", tty_write_wait[i]->len);
+  printf("\n");
+}
+/*queue *tty_read[NUM_TERMINALS];*/
+/*queue *tty_write[NUM_TERMINALS];*/
+/*queue *tty_read_wait[NUM_TERMINALS];*/
+/*queue *tty_write_wait[NUM_TERMINALS];*/
+/*int tty_busy[NUM_TERMINALS];*/
 
 /*######### Frame Functions #########*/
 /*
@@ -530,7 +546,6 @@ void get_next_ready_process(struct pte *page_table) {
      */
     dprintf("found a ready process...", 1);
     debug_pcb((struct pcb *) e->value);
-    debug_process_queues();
     /*debug_page_table(((struct pcb*)e->value)->page_table_p, 1);*/
 
     // switch to the new process, and save state of old process

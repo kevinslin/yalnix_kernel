@@ -73,10 +73,10 @@ queue *p_ready;
 queue *p_waiting;
 queue *p_delay;
 
-queue *tty_read[NUM_TERMINALS];
-queue *tty_write[NUM_TERMINALS];
-queue *tty_read_wait[NUM_TERMINALS];
-queue *tty_write_wait[NUM_TERMINALS];
+queue tty_read[NUM_TERMINALS];
+queue tty_write[NUM_TERMINALS];
+queue tty_read_wait[NUM_TERMINALS];
+queue tty_write_wait[NUM_TERMINALS];
 int tty_busy[NUM_TERMINALS];
 
 /* Etc */
@@ -110,6 +110,7 @@ void debug_stack_frame(ExceptionStackFrame *frame);
 void debug_frames();
 void debug_pcb(struct pcb *pcb_p);
 void debug_process_queues();
+void debug_tty_queues(int i);
 
 /* Frame Functions */
 int initialize_frames(int num_frames);

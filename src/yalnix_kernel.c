@@ -149,12 +149,12 @@ int TtyRead(int id, void *buf, int length) {
 	stream *s;
 	int length_diff;
 	// no lines ready to read
-	while (0 == tty_read[id]->len) {
-		enqueue(tty_read_wait[id], pcb_current);
+	while (0 == tty_read[id].len) {
+		enqueue(&tty_read_wait[id], pcb_current);
 		get_next_ready_process(pcb_current->page_table_p);
 	}
 	// something's ready to read
-	s = (stream *)dequeue(tty_read[id]);
+	s = (stream *)dequeue(&tty_read[id]);
 
 	length_diff = length - s->length;
 	// read everything
@@ -178,6 +178,7 @@ int TtyRead(int id, void *buf, int length) {
  * Writes length chars from buf into terminal id
  */
 int TtyWrite(int id, void *buf, int length) {
+  dprintf("got ttywrite...", 1);
 	void *buf_tmp;
 	stream *s;
 	// error checking
@@ -199,8 +200,16 @@ int TtyWrite(int id, void *buf, int length) {
 		tty_busy[id] = TTY_BUSY;
 		TtyTransmit(id, s->buf, s->length);
 	}
-	enqueue(tty_write[id], s);
-	enqueue(tty_write_wait[id], pcb_current);
+  dprintf("enqueing stream and pcb...", 2);
+	enqueue(&tty_write[id], s);
+	enqueue(&tty_write_wait[id], (void *)pcb_current);
+
+  dprintf(BOND, 2);
+  debug_tty_queues(id);
+  debug_pcb(pcb_current);
+  debug_pcb(tty_write_wait[id]->head);
+  dprintf(BOND, 2);
+
 	get_next_ready_process(pcb_current->page_table_p);
 	return s->length;
 }
